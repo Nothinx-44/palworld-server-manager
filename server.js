@@ -1,0 +1,481 @@
+require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+
+const express = require('express');
+const session = require('express-session');
+const rateLimit = require('express-rate-limit');
+const archiver = require('archiver');
+const cron = require('node-cron');
+
+const { getPalworldApi, runNssm, gracefulStop, getServiceName } = require('./lib/palworldClient');
+const discord = require('./lib/discord');
+const activityLog = require('./lib/activityLog');
+const playerTracker = require('./lib/playerTracker');
+const watchdog = require('./lib/watchdog');
+const users = require('./lib/users');
+const steamUpdate = require('./lib/steamUpdate');
+const serverSetup = require('./lib/serverSetup');
+
+// ---------- Config ----------
+const PORT = process.env.PORT || 3000;
+// SAVE_PATH / BACKUP_DIR sont lus dynamiquement (process.env) là où ils sont utilisés,
+// et non figés ici, pour que l'assistant d'installation puisse les définir à chaud.
+const BACKUP_KEEP_COUNT = parseInt(process.env.BACKUP_KEEP_COUNT || '14', 10);
+const BACKUP_CRON = process.env.BACKUP_CRON || '0 4 * * *';
+const RESTART_CRON = process.env.RESTART_CRON || ''; // vide = désactivé
+const RESTART_WARNING_MINUTES = parseInt(process.env.RESTART_WARNING_MINUTES || '5', 10);
+
+// Variables nécessaires au fonctionnement normal : on prévient au démarrage plutôt que
+// de laisser échouer silencieusement la première fois qu'une route en a besoin.
+const REQUIRED_ENV_VARS = ['PALWORLD_API_PASSWORD', 'SAVE_PATH', 'BACKUP_DIR', 'NSSM_PATH'];
+const missingEnvVars = REQUIRED_ENV_VARS.filter(key => !process.env[key]);
+if (missingEnvVars.length) {
+  console.warn(`⚠️  Variables .env manquantes : ${missingEnvVars.join(', ')} — les fonctionnalités concernées échoueront tant qu'elles ne sont pas renseignées.`);
+}
+
+// Si SESSION_SECRET n'est pas défini, on génère un secret aléatoire pour cette exécution
+// plutôt qu'une valeur fixe connue à l'avance. Les sessions sont déjà en mémoire (perdues
+// au redémarrage), donc ça ne casse rien de plus que ce qui est déjà documenté.
+if (!process.env.SESSION_SECRET) {
+  console.warn('⚠️  SESSION_SECRET non défini dans .env : un secret aléatoire a été généré pour cette exécution (tout le monde sera déconnecté à chaque redémarrage du dashboard).');
+}
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+// ---------- App ----------
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: false, // pas de HTTPS ici : accès en HTTP direct via IP publique fixe
+    maxAge: 1000 * 60 * 60 * 12 // 12h
+  }
+}));
+
+function requireAuth(req, res, next) {
+  if (req.session && req.session.user) return next();
+  return res.status(401).json({ error: 'not_authenticated' });
+}
+
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.user && req.session.user.role === 'admin') return next();
+  return res.status(403).json({ error: 'forbidden' });
+}
+
+// ---------- Auth ----------
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  message: { error: 'too_many_attempts' }
+});
+
+app.post('/api/login', loginLimiter, (req, res) => {
+  const { username, password } = req.body || {};
+  if (!users.verifyPassword(username, password)) {
+    return res.status(401).json({ error: 'invalid_credentials' });
+  }
+  const user = users.findUser(username);
+  req.session.user = { username: user.username, role: user.role || 'admin' };
+  res.json({ ok: true });
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+app.get('/api/me', (req, res) => {
+  res.json({ user: req.session.user || null });
+});
+
+// Changer son propre mot de passe (tout utilisateur connecté, admin ou viewer)
+app.post('/api/me/password', requireAuth, (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'missing_fields' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'password_too_short' });
+  if (!users.verifyPassword(req.session.user.username, currentPassword)) {
+    return res.status(401).json({ error: 'invalid_current_password' });
+  }
+  users.upsertUser(req.session.user.username, newPassword);
+  activityLog.log(req.session.user.username, 'password-change');
+  res.json({ ok: true });
+});
+
+// ---------- Gestion des comptes (admin uniquement) ----------
+app.get('/api/users', requireAuth, requireAdmin, (req, res) => {
+  res.json({ users: users.listUsers() });
+});
+
+app.post('/api/users', requireAuth, requireAdmin, (req, res) => {
+  const { username, password, role } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'username_password_required' });
+  if (password.length < 6) return res.status(400).json({ error: 'password_too_short' });
+  if (users.findUser(username)) return res.status(409).json({ error: 'already_exists' });
+  users.upsertUser(username, password, role === 'viewer' ? 'viewer' : 'admin');
+  activityLog.log(req.session.user.username, 'user-create', username);
+  res.json({ ok: true });
+});
+
+app.put('/api/users/:username', requireAuth, requireAdmin, (req, res) => {
+  const { username } = req.params;
+  const { password, role } = req.body || {};
+  if (password && password.length < 6) return res.status(400).json({ error: 'password_too_short' });
+  const target = users.findUser(username);
+  if (!target) return res.status(404).json({ error: 'not_found' });
+  try {
+    if (role && role !== (target.role || 'admin')) users.setRole(username, role);
+    if (password) users.upsertUser(username, password);
+    activityLog.log(req.session.user.username, 'user-update', username);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.message === 'last_admin') return res.status(400).json({ error: 'last_admin' });
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+app.delete('/api/users/:username', requireAuth, requireAdmin, (req, res) => {
+  const { username } = req.params;
+  if (username === req.session.user.username) return res.status(400).json({ error: 'cannot_delete_self' });
+  try {
+    users.deleteUser(username);
+    activityLog.log(req.session.user.username, 'user-delete', username);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.message === 'not_found') return res.status(404).json({ error: 'not_found' });
+    if (err.message === 'last_admin') return res.status(400).json({ error: 'last_admin' });
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+// ---------- Installation du serveur Palworld (admin uniquement) ----------
+const MAX_SETUP_LOG_LINES = 500;
+const setupState = { running: false, logs: [], sseClients: [] };
+
+function setupLog(line) {
+  const entry = { ts: new Date().toISOString(), line };
+  setupState.logs.push(entry);
+  if (setupState.logs.length > MAX_SETUP_LOG_LINES) setupState.logs.shift();
+  setupState.sseClients.forEach(res => res.write(`data: ${JSON.stringify(entry)}\n\n`));
+}
+
+function setupDone(payload) {
+  setupState.running = false;
+  setupState.sseClients.forEach(res => {
+    res.write(`event: done\ndata: ${JSON.stringify(payload)}\n\n`);
+    res.end();
+  });
+  setupState.sseClients = [];
+}
+
+app.get('/api/setup/status', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const status = await serverSetup.getStatus();
+    res.json({ ...status, installing: setupState.running });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+app.post('/api/setup/install', requireAuth, requireAdmin, (req, res) => {
+  if (setupState.running) return res.status(409).json({ error: 'install_in_progress' });
+  const body = req.body || {};
+  if (!body.adminPassword || body.adminPassword.length < 6) {
+    return res.status(400).json({ error: 'admin_password_required' });
+  }
+
+  const config = serverSetup.normalizeConfig(body);
+  setupState.running = true;
+  setupState.logs = [];
+  activityLog.log(req.session.user.username, 'server-setup-start');
+  discord.notify(`🛠️ Installation du serveur Palworld lancée par **${req.session.user.username}**…`);
+
+  serverSetup.runInstall(config, setupLog)
+    .then(() => {
+      activityLog.log(req.session.user.username, 'server-setup-done');
+      discord.notify('✅ Installation du serveur Palworld terminée, le dashboard est prêt à le gérer.');
+      setupDone({ ok: true });
+    })
+    .catch(err => {
+      const message = String(err.message || err);
+      setupLog(`ERREUR : ${message}`);
+      activityLog.log(req.session.user.username, 'server-setup-error', message);
+      discord.notify(`❌ Échec de l'installation du serveur Palworld : ${message.slice(0, 200)}`);
+      setupDone({ ok: false, error: message });
+    });
+
+  res.json({ ok: true, started: true });
+});
+
+app.get('/api/setup/stream', requireAuth, requireAdmin, (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
+  });
+  res.write(':ok\n\n');
+  setupState.logs.forEach(entry => res.write(`data: ${JSON.stringify(entry)}\n\n`));
+  if (!setupState.running) {
+    res.write('event: done\ndata: {}\n\n');
+    return res.end();
+  }
+  setupState.sseClients.push(res);
+  req.on('close', () => {
+    setupState.sseClients = setupState.sseClients.filter(c => c !== res);
+  });
+});
+
+// ---------- Statut / joueurs ----------
+app.get('/api/status', requireAuth, async (req, res) => {
+  try {
+    const palworldApi = getPalworldApi();
+    const [infoRes, playersRes] = await Promise.all([
+      palworldApi.get('/v1/api/info'),
+      palworldApi.get('/v1/api/players')
+    ]);
+    if (infoRes.status !== 200) return res.json({ online: false });
+    res.json({
+      online: true,
+      info: infoRes.data,
+      players: playersRes.status === 200 ? playersRes.data.players || [] : []
+    });
+  } catch {
+    res.json({ online: false });
+  }
+});
+
+// ---------- Démarrage / arrêt (admin uniquement) ----------
+// Verrou : un seul cycle de redémarrage à la fois (manuel ou planifié). Sans lui, un
+// redémarrage manuel déclenché pendant la fenêtre d'avertissement du redémarrage planifié
+// ferait se chevaucher deux séquences stop/update/start sur le même service.
+let restartInProgress = false;
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Séquence commune aux redémarrages manuel et planifié : arrêt propre (avec arrêt forcé en
+// secours), vérification de mise à jour SteamCMD, puis relance du service.
+async function runRestartSequence(stopMessage, waittime = 10) {
+  try {
+    await gracefulStop(stopMessage, waittime);
+  } catch {
+    try { await runNssm(['stop', getServiceName()]); } catch (_) {}
+  }
+  await sleep((waittime + 5) * 1000);
+  try {
+    const result = await steamUpdate.runUpdate();
+    activityLog.log('scheduler', 'steam-update-check', result.updated ? 'mise à jour appliquée' : 'déjà à jour');
+    if (result.updated) discord.notify('⬆️ Le serveur a été mis à jour vers la dernière version.');
+  } catch (err) {
+    console.error('Vérification SteamCMD échouée:', err.message || err);
+    discord.notify(`⚠️ Vérification de mise à jour échouée, redémarrage sans update (${String(err.message || err).slice(0, 150)})`);
+  }
+  try { await runNssm(['start', getServiceName()]); } catch (_) {}
+}
+
+app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
+  if (restartInProgress) return res.status(409).json({ error: 'restart_in_progress' });
+  try {
+    await runNssm(['start', getServiceName()]);
+    activityLog.log(req.session.user.username, 'start');
+    discord.notify(`▶️ Serveur démarré par **${req.session.user.username}**`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
+  if (restartInProgress) return res.status(409).json({ error: 'restart_in_progress' });
+  const waittime = 10;
+  try {
+    await gracefulStop('Arrêt du serveur demandé depuis le dashboard.', waittime);
+    activityLog.log(req.session.user.username, 'stop');
+    discord.notify(`⏹️ Arrêt du serveur demandé par **${req.session.user.username}**`);
+    res.json({ ok: true, waittime });
+  } catch (err) {
+    try {
+      await runNssm(['stop', getServiceName()]);
+      activityLog.log(req.session.user.username, 'stop-forced');
+      discord.notify(`⏹️ Arrêt forcé du serveur par **${req.session.user.username}** (API injoignable)`);
+      res.json({ ok: true, forced: true });
+    } catch (nssmErr) {
+      res.status(500).json({ error: String(nssmErr) });
+    }
+  }
+});
+
+app.post('/api/restart', requireAuth, requireAdmin, async (req, res) => {
+  if (restartInProgress) return res.status(409).json({ error: 'restart_in_progress' });
+  restartInProgress = true;
+  const waittime = 10;
+  activityLog.log(req.session.user.username, 'restart');
+  discord.notify(`🔄 Redémarrage demandé par **${req.session.user.username}** (vérification de mise à jour incluse)…`);
+  res.json({ ok: true, waittime });
+  try {
+    await runRestartSequence('Redémarrage du serveur demandé depuis le dashboard.', waittime);
+  } finally {
+    restartInProgress = false;
+  }
+});
+
+// ---------- Annonces / kick (admin uniquement) ----------
+app.post('/api/announce', requireAuth, requireAdmin, async (req, res) => {
+  const { message } = req.body || {};
+  if (!message) return res.status(400).json({ error: 'message_required' });
+  try {
+    await getPalworldApi().post('/v1/api/announce', { message });
+    activityLog.log(req.session.user.username, 'announce', message);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/kick', requireAuth, requireAdmin, async (req, res) => {
+  const { userid, message } = req.body || {};
+  if (!userid) return res.status(400).json({ error: 'userid_required' });
+  try {
+    await getPalworldApi().post('/v1/api/kick', { userid, message: message || 'Kick depuis le dashboard' });
+    activityLog.log(req.session.user.username, 'kick', userid);
+    discord.notify(`👢 Joueur exclu par **${req.session.user.username}**`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------- Sauvegardes (admin déclenche, tout le monde peut consulter/télécharger) ----------
+function makeBackup() {
+  return new Promise((resolve, reject) => {
+    const savePath = process.env.SAVE_PATH;
+    const backupDir = process.env.BACKUP_DIR;
+    if (!savePath || !fs.existsSync(savePath)) {
+      return reject(new Error('SAVE_PATH introuvable, vérifie ta config .env'));
+    }
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup_${stamp}.zip`;
+    const outPath = path.join(backupDir, filename);
+    const output = fs.createWriteStream(outPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => resolve(filename));
+    archive.on('error', reject);
+    archive.pipe(output);
+    archive.directory(savePath, false);
+    archive.finalize();
+  });
+}
+
+function pruneBackups() {
+  const backupDir = process.env.BACKUP_DIR;
+  if (!fs.existsSync(backupDir)) return;
+  const files = fs.readdirSync(backupDir)
+    .filter(f => f.endsWith('.zip'))
+    .map(f => ({ f, t: fs.statSync(path.join(backupDir, f)).mtimeMs }))
+    .sort((a, b) => b.t - a.t);
+  files.slice(BACKUP_KEEP_COUNT).forEach(({ f }) => fs.unlinkSync(path.join(backupDir, f)));
+}
+
+app.post('/api/backup', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await getPalworldApi().post('/v1/api/save', {}).catch(() => {});
+    const filename = await makeBackup();
+    pruneBackups();
+    activityLog.log(req.session.user.username, 'backup', filename);
+    discord.notify(`💾 Sauvegarde manuelle effectuée par **${req.session.user.username}**`);
+    res.json({ ok: true, filename });
+  } catch (err) {
+    discord.notify(`❌ Échec de la sauvegarde manuelle : ${err.message || err}`);
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+app.get('/api/backups', requireAuth, (req, res) => {
+  const backupDir = process.env.BACKUP_DIR;
+  if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
+  const backups = fs.readdirSync(backupDir)
+    .filter(f => f.endsWith('.zip'))
+    .map(f => {
+      const stat = fs.statSync(path.join(backupDir, f));
+      return { filename: f, size: stat.size, date: stat.mtime };
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  res.json({ backups });
+});
+
+app.get('/api/backups/:filename', requireAuth, (req, res) => {
+  const filename = path.basename(req.params.filename); // anti path traversal
+  const filePath = path.join(process.env.BACKUP_DIR, filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'not_found' });
+  res.download(filePath);
+});
+
+// ---------- Journal d'activité (lecture pour tout le monde) ----------
+app.get('/api/activity', requireAuth, (req, res) => {
+  res.json({ entries: activityLog.list(50) });
+});
+
+// ---------- Historique des joueurs (lecture pour tout le monde) ----------
+app.get('/api/players/history', requireAuth, (req, res) => {
+  res.json({ sessions: playerTracker.recentSessions(30), totals: playerTracker.totals() });
+});
+
+// ---------- Tâches planifiées ----------
+if (BACKUP_CRON) {
+  cron.schedule(BACKUP_CRON, () => {
+    makeBackup()
+      .then(filename => {
+        pruneBackups();
+        activityLog.log('scheduler', 'backup', filename);
+      })
+      .catch(err => {
+        console.error('Backup planifiée échouée:', err.message);
+        discord.notify(`❌ Sauvegarde planifiée échouée : ${err.message}`);
+      });
+  });
+}
+
+if (RESTART_CRON) {
+  cron.schedule(RESTART_CRON, async () => {
+    if (restartInProgress) {
+      activityLog.log('scheduler', 'restart-skipped', 'un redémarrage était déjà en cours');
+      return;
+    }
+    restartInProgress = true; // pris dès l'avertissement : la fenêtre des N minutes fait partie du cycle
+    try {
+      activityLog.log('scheduler', 'restart-warning');
+      try {
+        await getPalworldApi().post('/v1/api/announce', {
+          message: `Redémarrage automatique du serveur dans ${RESTART_WARNING_MINUTES} minutes.`
+        });
+      } catch (_) {}
+
+      await sleep(RESTART_WARNING_MINUTES * 60 * 1000);
+      activityLog.log('scheduler', 'restart');
+      discord.notify('🔄 Redémarrage planifié en cours (avec vérification de mise à jour)…');
+      await runRestartSequence('Redémarrage automatique planifié.', 10);
+    } finally {
+      restartInProgress = false;
+    }
+  });
+}
+
+// Suivi des joueurs (sessions/temps de jeu) et watchdog anti-crash tournent en continu
+playerTracker.start(60000);
+watchdog.start();
+
+// ---------- Pages ----------
+app.get('/', (req, res) => {
+  if (!req.session.user) return res.redirect('/login.html');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`Palworld dashboard démarré sur le port ${PORT}`);
+});

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palworld Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1>🐾 Palworld Dashboard <span class="role-badge" id="roleBadge"></span></h1>
+      <button class="logout-link" id="logoutBtn">Se déconnecter</button>
+    </header>
+
+    <div class="status-bar">
+      <span class="dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">Vérification du serveur…</span>
+    </div>
+
+    <div class="panel" data-admin-only style="margin-bottom: 22px;">
+      <h2>Installation du serveur Palworld</h2>
+      <ul class="checklist" id="setupChecklist"></ul>
+      <p class="warning" id="setupElevatedWarning" style="display:none;">
+        ⚠️ Le dashboard ne semble pas tourner avec des droits administrateur : l'installation
+        (service Windows, pare-feu) risque d'échouer. Lance-le en tant que service NSSM
+        (LocalSystem) ou depuis une console PowerShell élevée.
+      </p>
+
+      <button class="action" id="setupToggleBtn" type="button">Configurer / réinstaller</button>
+
+      <form class="account-form" id="setupForm" style="display:none; margin-top:14px;">
+        <input type="text" id="setupInstallDir" placeholder="Dossier d'installation (ex: D:\PalworldServer)">
+        <input type="text" id="setupSteamCmdDir" placeholder="Dossier SteamCMD">
+        <input type="text" id="setupNssmPath" placeholder="Chemin nssm.exe">
+        <input type="text" id="setupServiceName" placeholder="Nom du service Windows">
+        <input type="text" id="setupServerName" placeholder="Nom du serveur">
+        <input type="password" id="setupServerPassword" placeholder="Mot de passe serveur (optionnel)" autocomplete="new-password">
+        <input type="password" id="setupAdminPassword" placeholder="Mot de passe admin (6 caractères min., requis pour l'API REST)" autocomplete="new-password" required minlength="6">
+        <input type="number" id="setupMaxPlayers" placeholder="Joueurs max" min="1">
+        <input type="number" id="setupPort" placeholder="Port de jeu (UDP)">
+        <input type="number" id="setupRestApiPort" placeholder="Port API REST">
+        <input type="text" id="setupBackupDir" placeholder="Dossier de sauvegardes">
+        <button class="action primary" type="submit" id="setupSubmitBtn">Lancer l'installation</button>
+      </form>
+      <p class="error" id="setupError"></p>
+
+      <pre class="setup-log" id="setupLog" style="display:none;"></pre>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Contrôle du serveur</h2>
+        <div class="btn-row" data-admin-only>
+          <button class="action primary" id="startBtn">Démarrer</button>
+          <button class="action" id="restartBtn">Redémarrer</button>
+          <button class="action danger" id="stopBtn">Arrêter</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Sauvegardes</h2>
+        <div class="btn-row" data-admin-only>
+          <button class="action primary" id="backupBtn">Sauvegarder maintenant</button>
+        </div>
+        <ul class="backup-list" id="backupList"></ul>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 22px;">
+      <h2>Joueurs connectés</h2>
+      <table id="playersTable">
+        <thead>
+          <tr><th>Nom</th><th>Niveau</th><th>Ping</th><th></th></tr>
+        </thead>
+        <tbody id="playersBody"></tbody>
+      </table>
+      <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
+    </div>
+
+    <div class="panel" data-admin-only>
+      <h2>Annonce</h2>
+      <form class="announce-form" id="announceForm">
+        <input type="text" id="announceInput" placeholder="Message à afficher aux joueurs…" required>
+        <button class="action" type="submit">Envoyer</button>
+      </form>
+    </div>
+
+    <div class="grid" style="margin-top: 18px;">
+      <div class="panel">
+        <h2>Historique des joueurs</h2>
+        <p class="empty" id="totalsEmpty" style="display:none;">Pas encore de données.</p>
+        <ul class="backup-list" id="totalsList"></ul>
+        <h2 style="margin-top:18px;">Dernières sessions</h2>
+        <ul class="backup-list" id="sessionsList"></ul>
+      </div>
+
+      <div class="panel">
+        <h2>Journal d'activité</h2>
+        <ul class="backup-list" id="activityList"></ul>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top: 18px;">
+      <div class="panel">
+        <h2>Mon compte</h2>
+        <form class="account-form" id="passwordForm">
+          <input type="password" id="currentPassword" placeholder="Mot de passe actuel" autocomplete="current-password" required>
+          <input type="password" id="newPassword" placeholder="Nouveau mot de passe (6 caractères min.)" autocomplete="new-password" required minlength="6">
+          <button class="action primary" type="submit">Changer le mot de passe</button>
+        </form>
+        <p class="error" id="passwordError"></p>
+      </div>
+
+      <div class="panel" data-admin-only>
+        <h2>Gestion des utilisateurs</h2>
+        <table>
+          <thead><tr><th>Utilisateur</th><th>Rôle</th><th></th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+
+        <h2 style="margin-top:20px;">Créer un compte</h2>
+        <form class="account-form" id="createUserForm">
+          <input type="text" id="newUsername" placeholder="Nom d'utilisateur" required>
+          <input type="password" id="newUserPassword" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
+          <select id="newUserRole">
+            <option value="admin">Admin (accès complet)</option>
+            <option value="viewer">Lecture seule</option>
+          </select>
+          <button class="action primary" type="submit">Créer</button>
+        </form>
+        <p class="error" id="createUserError"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
