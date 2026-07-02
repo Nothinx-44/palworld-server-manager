@@ -18,6 +18,25 @@
       <span class="status-text" id="statusText">Vérification du serveur…</span>
     </div>
 
+    <div class="grid">
+      <div class="panel">
+        <h2>Informations serveur</h2>
+        <ul class="info-grid">
+          <li><span>Statut</span><b id="infoOnline">—</b></li>
+          <li><span>Version</span><b id="infoVersion">—</b></li>
+          <li><span>Joueurs</span><b id="infoPlayers">—</b></li>
+          <li><span>Uptime</span><b id="infoUptime">—</b></li>
+          <li><span>FPS serveur</span><b id="infoFps">—</b></li>
+          <li><span>Jours en jeu</span><b id="infoDays">—</b></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h2>Réglages du monde</h2>
+        <button class="action" id="loadSettingsBtn" type="button">Afficher les réglages</button>
+        <ul class="info-grid" id="settingsList" style="margin-top:12px;"></ul>
+      </div>
+    </div>
+
     <div class="panel" data-admin-only style="margin-bottom: 22px;">
       <h2>Installation du serveur Palworld</h2>
       <ul class="checklist" id="setupChecklist"></ul>
@@ -54,7 +73,19 @@
         <div class="btn-row" data-admin-only>
           <button class="action primary" id="startBtn">Démarrer</button>
           <button class="action" id="restartBtn">Redémarrer</button>
+          <button class="action" id="saveWorldBtn">Sauvegarder le monde</button>
           <button class="action danger" id="stopBtn">Arrêter</button>
+          <button class="action danger" id="forceStopBtn">Forcer l'arrêt</button>
+        </div>
+        <div class="schedule-row" data-admin-only style="margin-top:14px;">
+          <span>Redémarrage programmé dans</span>
+          <input type="number" id="restartMinutes" value="5" min="1" max="120">
+          <span>min</span>
+          <button class="action" id="scheduleRestartBtn">Programmer</button>
+        </div>
+        <div class="scheduled-banner" id="scheduledBanner" style="display:none;">
+          <span id="scheduledText"></span>
+          <button class="action danger" id="cancelRestartBtn" data-admin-only>Annuler</button>
         </div>
       </div>
 
@@ -64,6 +95,15 @@
           <button class="action primary" id="backupBtn">Sauvegarder maintenant</button>
         </div>
         <ul class="backup-list" id="backupList"></ul>
+      </div>
+
+      <div class="panel" data-admin-only>
+        <h2>Mise à jour du serveur</h2>
+        <div class="btn-row">
+          <button class="action" id="checkUpdateBtn">Vérifier les mises à jour</button>
+          <button class="action primary" id="applyUpdateBtn" style="display:none;">Appliquer la mise à jour</button>
+        </div>
+        <p class="empty" id="updateStatus" style="margin-top:10px;">Compare le build installé au dernier build Steam (via SteamCMD).</p>
       </div>
     </div>
 
@@ -78,12 +118,29 @@
       <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
     </div>
 
+    <div class="panel map-panel" style="margin-bottom: 22px;">
+      <h2>Carte en direct</h2>
+      <canvas id="mapCanvas"></canvas>
+      <div class="map-controls">
+        <label><input type="checkbox" id="mapShowTravel" checked> Voyage rapide</label>
+        <label><input type="checkbox" id="mapShowTowers" checked> Tours de boss</label>
+        <span class="map-hint">Molette : zoom — Glisser : déplacer. Ajoute une image de carte dans <code>public/map.png</code> pour remplacer la grille.</span>
+      </div>
+    </div>
+
+    <div class="panel" data-admin-only style="margin-bottom: 22px;">
+      <h2>Joueurs bannis</h2>
+      <ul class="backup-list" id="bansList"></ul>
+      <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
+    </div>
+
     <div class="panel" data-admin-only>
       <h2>Annonce</h2>
       <form class="announce-form" id="announceForm">
         <input type="text" id="announceInput" placeholder="Message à afficher aux joueurs…" required>
         <button class="action" type="submit">Envoyer</button>
       </form>
+      <div class="preset-row" id="presetRow"></div>
     </div>
 
     <div class="grid" style="margin-top: 18px;">
@@ -137,5 +194,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="/app.js"></script>
+  <script src="/map.js"></script>
 </body>
 </html>

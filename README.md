@@ -5,6 +5,32 @@ sauvegardes manuelles + planifiées, joueurs connectés, annonces, kick. Accessi
 directement via **l'IP publique fixe de ta box** (redirection de port), en HTTP simple — pas de
 nom de domaine ni de certificat nécessaire.
 
+## 0. Le plus simple : l'application de lancement (.exe)
+
+Pour ne rien avoir à installer ni à taper en ligne de commande, utilise l'application desktop
+**`PalworldDashboardLauncher.exe`** (disponible dans les *Releases* GitHub). Elle regroupe toute la
+mise en place dans une interface graphique :
+
+1. Fais un **clic droit → « Exécuter en tant qu'administrateur »** (nécessaire pour créer les
+   services Windows et la règle de pare-feu).
+2. **Étape 1** : une checklist montre l'état actuel (droits admin, SteamCMD, serveur, services…).
+3. **Étape 2 – Installer** : remplis les réglages essentiels (dossiers, mots de passe, ports) et
+   clique sur *Lancer l'installation*. L'appli télécharge NSSM automatiquement, installe SteamCMD +
+   le serveur Palworld, configure `PalWorldSettings.ini`, crée **les deux services Windows**
+   (serveur de jeu + dashboard) et la règle de pare-feu — tout en direct sous forme de log.
+4. **Étape 3 – Lancer** : crée un compte admin, démarre le dashboard, et ouvre-le dans le
+   navigateur. L'appli affiche l'URL locale à partager après redirection de port.
+
+Aucun prérequis : Node.js et les dépendances sont embarqués dans l'`.exe`. La config et les données
+sont stockées dans `C:\ProgramData\PalworldDashboard`, et le service dashboard redémarre tout seul
+au boot de la machine.
+
+> SmartScreen peut afficher un avertissement au 1er lancement (`.exe` non signé) : *Informations
+> complémentaires → Exécuter quand même*.
+
+Le reste de ce README décrit l'**installation manuelle** (équivalente), utile si tu préfères tout
+contrôler ou déployer sans l'interface graphique.
+
 ## 1. Installer le dashboard
 
 Le dashboard peut désormais **créer le serveur Palworld lui-même** (section 2) — pas besoin
@@ -167,6 +193,36 @@ Optionnel, activé en renseignant `RESTART_CRON` dans `.env` (syntaxe cron class
 avant (5 min par défaut), puis le serveur redémarre proprement (sauvegarde + arrêt + relance).
 Laisse `RESTART_CRON` vide pour désactiver.
 
+### Opérations serveur avancées
+
+- **Informations serveur** : version, uptime, FPS serveur, jours en jeu (via `/v1/api/metrics`).
+- **Réglages du monde** en lecture (difficulté, taux d'XP, PvP…).
+- **Ban / déban** : bouton "Bannir" à côté du kick ; la liste des bannis est conservée dans
+  `data/bans.json` (l'API Palworld ne sait pas la lister) avec débannissement en un clic.
+- **Sauvegarde du monde** immédiate (sans zip) et **arrêt forcé** (immédiat, sans sauvegarde).
+- **Redémarrage programmé à la demande** : choisis un délai, les joueurs reçoivent des annonces
+  décroissantes (30/15/10/5/3/1 min), annulable jusqu'au dernier moment.
+- **Messages préréglés** : annonces en un clic sous le champ d'annonce.
+
+### Mise à jour du serveur
+
+Panneau "Mise à jour du serveur" : **Vérifier** compare le build installé (manifeste Steam local)
+au dernier build publié (via SteamCMD, ~30-60 s), et **Appliquer** lance la mise à jour — avec
+redémarrage propre si le serveur tourne, ou sans le relancer s'il était arrêté.
+
+### Carte en direct
+
+Positions des joueurs en temps réel (60 s max de latence), marqueurs voyage rapide et tours de
+boss (désactivables), zoom à la molette, déplacement à la souris, regroupement automatique des
+joueurs proches. Par défaut le fond est une grille de coordonnées : place une image de la carte
+de Palpagos dans `public/map.png` (couvrant les coordonnées -1000..1000) pour l'utiliser en fond.
+Les marqueurs et la conversion de coordonnées sont éditables dans `public/map-markers.json`.
+
+### Sessions persistantes
+
+Les connexions survivent aux redémarrages du dashboard (stockées dans `data/sessions.json`),
+tant que `SESSION_SECRET` est renseigné dans le `.env`.
+
 ### Notifications Discord
 
 Optionnel, renseigne `DISCORD_WEBHOOK_URL` dans `.env` (crée un webhook dans Discord via
@@ -214,6 +270,17 @@ le dashboard.
   sérialisée, édition de `PalWorldSettings.ini`.
 - `npm run mock` : lance une fausse API Palworld sur le port 8212 pour tester le dashboard
   sans vrai serveur de jeu (lance ensuite `node server.js` normalement).
+
+### Application desktop (lanceur .exe)
+
+- `npm install` récupère aussi Electron (devDependency).
+- `npm run electron:dev` : lance l'assistant desktop en mode développement (tourne sur le projet
+  sur place, sans copier de fichiers ; utilise le Node du PATH pour le service).
+- `npm run dist` : télécharge un `node.exe` autonome dans `runtime/` (via `scripts/fetch-node.js`)
+  puis construit l'`.exe` portable dans `dist/` avec electron-builder. À lancer sur Windows.
+- Le code du lanceur est dans `electron/` (processus principal + IPC + interface). Toute la logique
+  d'installation est réutilisée telle quelle depuis `lib/` (notamment `lib/serverSetup.js`), donc le
+  dashboard web et l'application desktop partagent exactement le même moteur.
 
 ## Référence API Palworld utilisée
 

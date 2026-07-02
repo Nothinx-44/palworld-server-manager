@@ -1,0 +1,21 @@
+{
+  "_comment": "Marqueurs de la carte (coordonnées carte du jeu, de -1000 à 1000). Fichier libre : ajoute/retire des points. transform convertit les coordonnées monde de l'API REST en coordonnées carte : mapX=(x+offsetX)/scale, mapY=(y+offsetY)/scale.",
+  "transform": { "offsetX": 123888, "offsetY": -158000, "scale": 459.617 },
+  "bossTowers": [
+    { "name": "Tour du Syndicat de Rayne", "x": 112, "y": -434 },
+    { "name": "Tour de la Libre Alliance Pal", "x": 185, "y": 28 },
+    { "name": "Tour du PIDF", "x": 557, "y": 335 },
+    { "name": "Tour des Frères du Pyré éternel", "x": -588, "y": -518 },
+    { "name": "Tour de l'Unité de recherche génétique Pal", "x": -149, "y": 445 }
+  ],
+  "fastTravel": [
+    { "name": "Petit campement", "x": 75, "y": -479 },
+    { "name": "Église délabrée", "x": 11, "y": -381 },
+    { "name": "Ruines du fort", "x": 112, "y": -351 },
+    { "name": "Colline du Béhémoth herbeux", "x": 22, "y": -305 },
+    { "name": "Pont de l'aube", "x": 25, "y": -217 },
+    { "name": "Croisée du plateau venteux", "x": -104, "y": -244 },
+    { "name": "Chutes de la gorge cachée", "x": -136, "y": -378 },
+    { "name": "Îlot du départ", "x": 234, "y": -510 }
+  ]
+}

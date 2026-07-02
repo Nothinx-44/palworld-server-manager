@@ -1,4 +1,6 @@
-require('dotenv').config();
+// .env chargé depuis le dossier de base (paths.ENV_FILE) : quand le dashboard tourne comme service
+// lancé par l'appli desktop, PALWORLD_DASHBOARD_HOME pointe hors du dossier de resources.
+require('dotenv').config({ path: require('./lib/paths').ENV_FILE });
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -9,7 +11,8 @@ const rateLimit = require('express-rate-limit');
 const archiver = require('archiver');
 const cron = require('node-cron');
 
-const { getPalworldApi, runNssm, gracefulStop, getServiceName } = require('./lib/palworldClient');
+const { getPalworldApi, runNssm, gracefulStop, getServiceName, isServiceRunning } = require('./lib/palworldClient');
+const { JsonSessionStore } = require('./lib/sessionStore');
 const discord = require('./lib/discord');
 const activityLog = require('./lib/activityLog');
 const playerTracker = require('./lib/playerTracker');
@@ -17,6 +20,7 @@ const watchdog = require('./lib/watchdog');
 const users = require('./lib/users');
 const steamUpdate = require('./lib/steamUpdate');
 const serverSetup = require('./lib/serverSetup');
+const bans = require('./lib/bans');
 
 // ---------- Config ----------
 const PORT = process.env.PORT || 3000;
@@ -46,17 +50,28 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 // ---------- App ----------
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: SESSION_SECRET,
+  store: new JsonSessionStore(), // sessions persistées : les connexions survivent aux redémarrages
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     secure: false, // pas de HTTPS ici : accès en HTTP direct via IP publique fixe
+    sameSite: 'lax', // explicite (et pas seulement le défaut navigateur) : bloque les POST cross-site avec cookie
     maxAge: 1000 * 60 * 60 * 12 // 12h
   }
 }));
+// La page du dashboard ne doit être servie qu'aux utilisateurs connectés (les JS/CSS restent
+// publics, ils ne contiennent rien de sensible). Placé avant express.static, qui servirait
+// sinon /index.html à n'importe qui.
+app.use((req, res, next) => {
+  if (req.path === '/index.html' && !(req.session && req.session.user)) {
+    return res.redirect('/login.html');
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public')));
 
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) return next();
@@ -233,18 +248,34 @@ app.get('/api/setup/stream', requireAuth, requireAdmin, (req, res) => {
 app.get('/api/status', requireAuth, async (req, res) => {
   try {
     const palworldApi = getPalworldApi();
-    const [infoRes, playersRes] = await Promise.all([
+    const [infoRes, playersRes, metricsRes] = await Promise.all([
       palworldApi.get('/v1/api/info'),
-      palworldApi.get('/v1/api/players')
+      palworldApi.get('/v1/api/players'),
+      palworldApi.get('/v1/api/metrics')
     ]);
-    if (infoRes.status !== 200) return res.json({ online: false });
+    if (infoRes.status !== 200) {
+      return res.json({ online: false, scheduledRestartAt: scheduledRestart ? scheduledRestart.at : null });
+    }
     res.json({
       online: true,
       info: infoRes.data,
-      players: playersRes.status === 200 ? playersRes.data.players || [] : []
+      players: playersRes.status === 200 ? playersRes.data.players || [] : [],
+      metrics: metricsRes.status === 200 ? metricsRes.data : null,
+      scheduledRestartAt: scheduledRestart ? scheduledRestart.at : null
     });
   } catch {
-    res.json({ online: false });
+    res.json({ online: false, scheduledRestartAt: scheduledRestart ? scheduledRestart.at : null });
+  }
+});
+
+// Réglages du monde (lecture seule, tout utilisateur connecté)
+app.get('/api/settings', requireAuth, async (req, res) => {
+  try {
+    const r = await getPalworldApi().get('/v1/api/settings');
+    if (r.status !== 200) return res.status(502).json({ error: 'unreachable' });
+    res.json({ settings: r.data });
+  } catch {
+    res.status(502).json({ error: 'unreachable' });
   }
 });
 
@@ -253,8 +284,61 @@ app.get('/api/status', requireAuth, async (req, res) => {
 // redémarrage manuel déclenché pendant la fenêtre d'avertissement du redémarrage planifié
 // ferait se chevaucher deux séquences stop/update/start sur le même service.
 let restartInProgress = false;
+// Redémarrage programmé en attente (avec avertissements) : { at, by, minutes, cancel }
+let scheduledRestart = null;
+
+// Vrai si un redémarrage est en cours OU programmé : bloque les autres actions serveur.
+function restartLocked() {
+  return restartInProgress || !!scheduledRestart;
+}
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Le service NSSM du serveur est configuré avec AppExit=Restart (relance auto après crash).
+// Conséquence : après un arrêt volontaire via l'API Palworld (shutdown/stop), NSSM relancerait
+// le serveur ~5 s après la sortie du process. On force donc le service en état STOPPED une fois
+// le process sorti, pour que l'arrêt volontaire tienne (sans perdre la relance anti-crash).
+function confirmServiceStopped(delayMs) {
+  setTimeout(() => {
+    runNssm(['stop', getServiceName()]).catch(() => {});
+  }, delayMs);
+}
+
+// Programme un redémarrage dans `minutes` minutes, avec des annonces d'avertissement décroissantes
+// aux joueurs. Annulable via /api/cancel-restart. Chaque annonce et le redémarrage final sont
+// posés en setTimeout indépendants pour pouvoir tous les annuler d'un coup.
+function scheduleRestart(minutes, by) {
+  const api = getPalworldApi();
+  const announce = msg => api.post('/v1/api/announce', { message: msg }).catch(() => {});
+  const timers = [];
+  const marks = [...new Set([minutes, ...[30, 15, 10, 5, 3, 1].filter(m => m < minutes)])];
+
+  marks.forEach(mark => {
+    timers.push(setTimeout(
+      () => announce(`Redémarrage du serveur dans ${mark} minute${mark > 1 ? 's' : ''}.`),
+      (minutes - mark) * 60000
+    ));
+  });
+
+  timers.push(setTimeout(async () => {
+    scheduledRestart = null;
+    restartInProgress = true;
+    activityLog.log('scheduler', 'restart');
+    await announce('Redémarrage du serveur maintenant.');
+    try {
+      await runRestartSequence('Redémarrage programmé depuis le dashboard.', 10);
+    } finally {
+      restartInProgress = false;
+    }
+  }, minutes * 60000));
+
+  scheduledRestart = {
+    at: Date.now() + minutes * 60000,
+    by,
+    minutes,
+    cancel: () => timers.forEach(clearTimeout)
+  };
+}
 
 // Séquence commune aux redémarrages manuel et planifié : arrêt propre (avec arrêt forcé en
 // secours), vérification de mise à jour SteamCMD, puis relance du service.
@@ -265,6 +349,9 @@ async function runRestartSequence(stopMessage, waittime = 10) {
     try { await runNssm(['stop', getServiceName()]); } catch (_) {}
   }
   await sleep((waittime + 5) * 1000);
+  // Neutralise la relance auto NSSM (AppExit=Restart) : sans ça, le serveur serait relancé
+  // pendant la vérification SteamCMD, qui échouerait sur des fichiers verrouillés.
+  try { await runNssm(['stop', getServiceName()]); } catch (_) {}
   try {
     const result = await steamUpdate.runUpdate();
     activityLog.log('scheduler', 'steam-update-check', result.updated ? 'mise à jour appliquée' : 'déjà à jour');
@@ -277,7 +364,7 @@ async function runRestartSequence(stopMessage, waittime = 10) {
 }
 
 app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
-  if (restartInProgress) return res.status(409).json({ error: 'restart_in_progress' });
+  if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   try {
     await runNssm(['start', getServiceName()]);
     activityLog.log(req.session.user.username, 'start');
@@ -289,10 +376,11 @@ app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
 });
 
 app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
-  if (restartInProgress) return res.status(409).json({ error: 'restart_in_progress' });
+  if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   const waittime = 10;
   try {
     await gracefulStop('Arrêt du serveur demandé depuis le dashboard.', waittime);
+    confirmServiceStopped((waittime + 2) * 1000);
     activityLog.log(req.session.user.username, 'stop');
     discord.notify(`⏹️ Arrêt du serveur demandé par **${req.session.user.username}**`);
     res.json({ ok: true, waittime });
@@ -309,7 +397,7 @@ app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
 });
 
 app.post('/api/restart', requireAuth, requireAdmin, async (req, res) => {
-  if (restartInProgress) return res.status(409).json({ error: 'restart_in_progress' });
+  if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   restartInProgress = true;
   const waittime = 10;
   activityLog.log(req.session.user.username, 'restart');
@@ -346,6 +434,127 @@ app.post('/api/kick', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
+});
+
+// ---------- Ban / unban (admin uniquement) ----------
+app.get('/api/bans', requireAuth, requireAdmin, (req, res) => {
+  res.json({ bans: bans.list() });
+});
+
+app.post('/api/ban', requireAuth, requireAdmin, async (req, res) => {
+  const { userid, name } = req.body || {};
+  if (!userid) return res.status(400).json({ error: 'userid_required' });
+  try {
+    await getPalworldApi().post('/v1/api/ban', { userid });
+    await bans.add(userid, name, req.session.user.username);
+    activityLog.log(req.session.user.username, 'ban', name || userid);
+    discord.notify(`🔨 **${name || userid}** banni par **${req.session.user.username}**`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/unban', requireAuth, requireAdmin, async (req, res) => {
+  const { userid } = req.body || {};
+  if (!userid) return res.status(400).json({ error: 'userid_required' });
+  try {
+    await getPalworldApi().post('/v1/api/unban', { userid });
+    await bans.remove(userid);
+    activityLog.log(req.session.user.username, 'unban', userid);
+    discord.notify(`♻️ Joueur débanni par **${req.session.user.username}**`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------- Sauvegarde du monde immédiate (sans zip) & arrêt forcé (admin uniquement) ----------
+app.post('/api/save', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await getPalworldApi().post('/v1/api/save', {});
+    activityLog.log(req.session.user.username, 'save');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/force-stop', requireAuth, requireAdmin, async (req, res) => {
+  if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
+  try {
+    await getPalworldApi().post('/v1/api/stop', {});
+    confirmServiceStopped(2000);
+    activityLog.log(req.session.user.username, 'force-stop');
+    discord.notify(`🛑 Arrêt forcé (immédiat) du serveur par **${req.session.user.username}**`);
+    res.json({ ok: true });
+  } catch (err) {
+    try {
+      await runNssm(['stop', getServiceName()]);
+      activityLog.log(req.session.user.username, 'force-stop');
+      res.json({ ok: true, forced: true });
+    } catch (nssmErr) {
+      res.status(500).json({ error: String(nssmErr) });
+    }
+  }
+});
+
+// ---------- Mise à jour du serveur (admin uniquement) ----------
+app.get('/api/update/check', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await steamUpdate.checkForUpdate();
+    activityLog.log(req.session.user.username, 'update-check',
+      result.updateAvailable ? `disponible (${result.installedBuild} → ${result.latestBuild})` : 'à jour');
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+app.post('/api/update/apply', requireAuth, requireAdmin, async (req, res) => {
+  if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
+  restartInProgress = true;
+  activityLog.log(req.session.user.username, 'update-apply');
+  discord.notify(`⬆️ Mise à jour du serveur lancée par **${req.session.user.username}**…`);
+  const wasRunning = await isServiceRunning();
+  res.json({ ok: true, wasRunning });
+  try {
+    if (wasRunning) {
+      // Serveur en route : cycle complet arrêt propre → update → relance
+      await runRestartSequence('Mise à jour du serveur : redémarrage.', 10);
+    } else {
+      // Serveur arrêté : on met juste à jour, sans le démarrer (il a été arrêté exprès)
+      try {
+        const result = await steamUpdate.runUpdate();
+        activityLog.log('scheduler', 'steam-update-check', result.updated ? 'mise à jour appliquée' : 'déjà à jour');
+        discord.notify('⬆️ Mise à jour terminée (serveur laissé arrêté).');
+      } catch (err) {
+        discord.notify(`❌ Échec de la mise à jour : ${String(err.message || err).slice(0, 150)}`);
+      }
+    }
+  } finally {
+    restartInProgress = false;
+  }
+});
+
+// ---------- Redémarrage programmé avec avertissements (admin uniquement) ----------
+app.post('/api/schedule-restart', requireAuth, requireAdmin, (req, res) => {
+  if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
+  const minutes = Math.max(1, Math.min(120, parseInt(req.body && req.body.minutes, 10) || 5));
+  scheduleRestart(minutes, req.session.user.username);
+  activityLog.log(req.session.user.username, 'restart-scheduled', `${minutes} min`);
+  discord.notify(`🕒 Redémarrage programmé dans ${minutes} min par **${req.session.user.username}**`);
+  res.json({ ok: true, minutes, at: scheduledRestart.at });
+});
+
+app.post('/api/cancel-restart', requireAuth, requireAdmin, async (req, res) => {
+  if (!scheduledRestart) return res.status(400).json({ error: 'no_scheduled_restart' });
+  scheduledRestart.cancel();
+  scheduledRestart = null;
+  activityLog.log(req.session.user.username, 'restart-cancelled');
+  await getPalworldApi().post('/v1/api/announce', { message: 'Redémarrage programmé annulé.' }).catch(() => {});
+  discord.notify(`✅ Redémarrage programmé annulé par **${req.session.user.username}**`);
+  res.json({ ok: true });
 });
 
 // ---------- Sauvegardes (admin déclenche, tout le monde peut consulter/télécharger) ----------
@@ -410,6 +619,7 @@ app.get('/api/backups', requireAuth, (req, res) => {
 });
 
 app.get('/api/backups/:filename', requireAuth, (req, res) => {
+  if (!process.env.BACKUP_DIR) return res.status(404).json({ error: 'not_found' });
   const filename = path.basename(req.params.filename); // anti path traversal
   const filePath = path.join(process.env.BACKUP_DIR, filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'not_found' });

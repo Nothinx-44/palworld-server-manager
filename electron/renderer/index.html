@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palworld Dashboard — Installation & Lancement</title>
+<!-- Réutilise la CSS du dashboard web (electron/renderer -> ../../public) -->
+<link rel="stylesheet" href="../../public/style.css">
+<style>
+  /* La fenêtre s'ajuste au contenu (pas de scroll) ; le scroll vertical ne réapparaît qu'en
+     secours si l'écran est trop petit pour tout afficher. */
+  html, body { overflow-x: hidden; }
+  .wrap { max-width: none; padding: 18px 20px 20px; }
+  .panel { padding: 15px 17px; }
+  .step-num {
+    display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center;
+    border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    font-size: 0.8rem; font-weight: 700; margin-right: 8px;
+  }
+  .hint { color: var(--muted); font-size: 0.8rem; margin: 0 0 10px; line-height: 1.45; }
+
+  /* Disposition générale en deux colonnes pour tout faire tenir sans scroll */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+
+  .panel h2 { margin-bottom: 10px; }
+  .checklist { margin-bottom: 4px; }
+  .checklist li { padding: 2px 0; }
+
+  /* Formulaire d'installation en 2 sous-colonnes ; chaque champ a un libellé au-dessus */
+  #setupForm { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 10px; margin-top: 10px; }
+  #setupForm .field { display: flex; flex-direction: column; gap: 3px; }
+  #setupForm .field.wide, #setupForm button { grid-column: 1 / -1; }
+  #setupForm .field > span {
+    font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  #setupForm input { padding: 7px 11px; font-size: 0.85rem; width: 100%; }
+  #setupForm button { justify-self: start; }
+  /* Champs de dossier : input + bouton Parcourir côte à côte */
+  .path-row { display: flex; gap: 6px; }
+  .path-row input { flex: 1; min-width: 0; }
+  .browse-btn {
+    white-space: nowrap; padding: 7px 12px; font-size: 0.8rem; cursor: pointer;
+    background: var(--panel-alt); border: 1px solid var(--line); border-radius: 6px; color: var(--text);
+  }
+  .browse-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .setup-log { max-height: 130px; }
+
+  .share-box {
+    background: var(--panel-alt); border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 13px; font-family: var(--font-mono); font-size: 0.82rem; margin: 10px 0;
+    word-break: break-all;
+  }
+  .share-box b { color: var(--accent); }
+  .pill { font-size: 0.75rem; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.on { color: var(--ok); border-color: var(--ok); }
+</style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <header class="top">
+      <h1>🐾 Palworld Dashboard <span class="role-badge">Assistant</span></h1>
+      <span class="pill" id="dashPill">Dashboard : —</span>
+    </header>
+
+    <p class="warning" id="elevatedWarning" style="display:none;">
+      ⚠️ L'application ne tourne pas avec les droits administrateur : la création des services
+      Windows et de la règle de pare-feu échouera. Ferme, fais un clic droit sur l'.exe →
+      « Exécuter en tant qu'administrateur ».
+    </p>
+
+    <div class="cols">
+      <!-- Colonne gauche : état + installation -->
+      <div class="col">
+        <div class="panel">
+          <h2><span class="step-num">1</span>État de l'installation</h2>
+          <ul class="checklist" id="checklist"></ul>
+        </div>
+
+        <div class="panel">
+          <h2><span class="step-num">2</span>Installer / configurer le serveur</h2>
+          <p class="hint">
+            Télécharge SteamCMD + le serveur Palworld (12–15 Go), configure <code>PalWorldSettings.ini</code>,
+            crée les services Windows (serveur + dashboard) et la règle de pare-feu. NSSM est téléchargé
+            automatiquement.
+          </p>
+          <form class="account-form" id="setupForm">
+            <div class="field wide"><span>Dossier d'installation</span>
+              <div class="path-row">
+                <input type="text" id="installDir" placeholder="ex: D:\PalworldServer">
+                <button type="button" class="browse-btn" data-target="installDir">Parcourir…</button>
+              </div></div>
+            <div class="field wide"><span>Dossier SteamCMD</span>
+              <div class="path-row">
+                <input type="text" id="steamCmdDir" placeholder="auto si laissé vide">
+                <button type="button" class="browse-btn" data-target="steamCmdDir">Parcourir…</button>
+              </div></div>
+            <label class="field"><span>Nom du serveur</span>
+              <input type="text" id="serverName" placeholder="ex: Chez les copains"></label>
+            <label class="field"><span>Mot de passe serveur</span>
+              <input type="password" id="serverPassword" placeholder="optionnel" autocomplete="new-password"></label>
+            <label class="field wide"><span>Mot de passe admin (sert aussi à l'API REST)</span>
+              <input type="password" id="adminPassword" placeholder="6 caractères minimum — requis" autocomplete="new-password" required minlength="6"></label>
+            <label class="field"><span>Joueurs max</span>
+              <input type="number" id="maxPlayers" placeholder="8" min="1"></label>
+            <label class="field"><span>Port de jeu (UDP)</span>
+              <input type="number" id="port" placeholder="8211"></label>
+            <label class="field"><span>Port API REST</span>
+              <input type="number" id="restApiPort" placeholder="8212"></label>
+            <div class="field wide"><span>Dossier de sauvegardes</span>
+              <div class="path-row">
+                <input type="text" id="backupDir" placeholder="auto si laissé vide">
+                <button type="button" class="browse-btn" data-target="backupDir">Parcourir…</button>
+              </div></div>
+            <button class="action primary" type="submit" id="installBtn">Lancer l'installation</button>
+          </form>
+          <p class="error" id="setupError"></p>
+          <pre class="setup-log" id="log" style="display:none;"></pre>
+        </div>
+      </div>
+
+      <!-- Colonne droite : lancement + comptes -->
+      <div class="col">
+        <div class="panel">
+          <h2><span class="step-num">3</span>Lancer le dashboard</h2>
+          <div class="btn-row">
+            <button class="action primary" id="startDashBtn">Démarrer</button>
+            <button class="action danger" id="stopDashBtn">Arrêter</button>
+            <button class="action" id="openDashBtn">Ouvrir dans le navigateur</button>
+          </div>
+          <div class="share-box" id="shareBox" style="display:none;">
+            À partager avec tes amis (après redirection de port sur ta box) :<br>
+            <b id="shareUrl"></b>
+          </div>
+          <p class="hint" id="shareHint" style="display:none;"></p>
+
+          <h2 style="margin-top:18px;">Services Windows</h2>
+          <div class="btn-row">
+            <button class="action" id="installServicesBtn">(Ré)installer</button>
+            <button class="action danger" id="uninstallServicesBtn">Désinstaller</button>
+          </div>
+          <p class="hint">Recrée ou supprime les services (serveur + dashboard) sans re-télécharger. La désinstallation ne touche ni au serveur ni aux sauvegardes.</p>
+        </div>
+
+        <div class="panel">
+          <h2>Comptes</h2>
+          <table>
+            <thead><tr><th>Utilisateur</th><th>Rôle</th></tr></thead>
+            <tbody id="accountsBody"></tbody>
+          </table>
+          <p class="empty" id="accountsEmpty" style="display:none;">Aucun compte — crée le premier ci-dessous.</p>
+          <form class="account-form" id="accountForm" style="margin-top:12px;">
+            <input type="text" id="newUsername" placeholder="Nom d'utilisateur" required>
+            <input type="password" id="newPassword" placeholder="Mot de passe (6 car. min.)" required minlength="6">
+            <select id="newRole">
+              <option value="admin">Admin (accès complet)</option>
+              <option value="viewer">Lecture seule</option>
+            </select>
+            <button class="action primary" type="submit">Créer le compte</button>
+          </form>
+          <p class="error" id="accountError"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>
