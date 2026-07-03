@@ -7,8 +7,11 @@
   const ctx = canvas.getContext('2d');
 
   const MAP_EXTENT = 1000; // coordonnées carte du jeu : -1000..1000 sur les deux axes
-  // Conversion coordonnées monde (API REST) -> coordonnées carte, constante communautaire.
-  const TRANSFORM = { offsetX: 123888, offsetY: -158000, scale: 459.617 };
+  // Conversion coordonnées monde (API REST) -> coordonnées carte. Constantes reprises d'un projet
+  // tiers fonctionnel (github.com/Dalufishe/palserver-online-map) : les axes X/Y de l'API REST sont
+  // ÉCHANGÉS par rapport aux axes de la carte (location_y alimente l'axe X carte, location_x
+  // alimente l'axe Y carte) — ce n'était pas un simple signe inversé comme supposé précédemment.
+  const TRANSFORM = { offsetX: 123467.1611767, offsetY: -157664.55791065, scale: 462.962962963 };
 
   // Vue : centre (coordonnées carte) + zoom (pixels CSS par unité carte)
   const view = { x: 0, y: 0, scale: 0.28 };
@@ -21,12 +24,10 @@
   mapImage.onerror = () => { mapImageReady = false; }; // pas d'image fournie : on garde la grille
   mapImage.src = '/map.png';
 
-  // Coordonnées monde (API REST) -> coordonnées carte du jeu
+  // Coordonnées monde (API REST) -> coordonnées carte du jeu (wx=location_x, wy=location_y ;
+  // axes échangés, voir commentaire sur TRANSFORM ci-dessus).
   function worldToMap(wx, wy) {
-    // Axe X inversé par rapport à la formule communautaire d'origine : constaté en comparant une
-    // position réelle en jeu à la position calculée (signalé le 2026-07-03). À revalider avec le
-    // repère de coordonnées encore affiché sous chaque joueur.
-    return { x: -(wx + TRANSFORM.offsetX) / TRANSFORM.scale, y: (wy + TRANSFORM.offsetY) / TRANSFORM.scale };
+    return { x: (wy + TRANSFORM.offsetY) / TRANSFORM.scale, y: (wx + TRANSFORM.offsetX) / TRANSFORM.scale };
   }
 
   // Coordonnées carte -> pixels CSS du canvas (nord en haut : y carte croissant vers le haut)
