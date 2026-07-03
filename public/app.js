@@ -407,23 +407,34 @@ function renderSettingsEditor(settings, running) {
 }
 
 document.getElementById('stopToEditBtn').addEventListener('click', async () => {
-  if (!confirm('Forcer l\'arrêt du serveur pour pouvoir modifier les réglages ? Les joueurs connectés seront déconnectés.')) return;
+  if (!confirm('Arrêter le serveur (avec sauvegarde) pour pouvoir modifier les réglages ? Les joueurs connectés seront déconnectés.')) return;
   const btn = document.getElementById('stopToEditBtn');
   btn.disabled = true;
-  const r = await api('POST', '/api/force-stop');
+  const r = await api('POST', '/api/stop');
   if (!r || !r.ok) { btn.disabled = false; showToast(actionError(r, 'Échec de l\'arrêt')); return; }
-  showToast('Serveur arrêté — chargement des réglages modifiables…');
-  setTimeout(async () => {
-    btn.disabled = false;
+  showToast('Sauvegarde puis arrêt en cours…');
+
+  // L'arrêt propre sauvegarde d'abord puis laisse waittime (≈10 s) à Palworld pour couper : on
+  // sonde /api/settings/file (qui recalcule l'état réel du serveur) jusqu'à ce qu'il soit bien
+  // arrêté, plutôt qu'un délai fixe qui pourrait tomber trop tôt.
+  const waitMs = ((r.waittime || 10) + 2) * 1000;
+  await new Promise(resolve => setTimeout(resolve, waitMs));
+  const maxAttempts = 8;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const data = await api('GET', '/api/settings/file');
-    if (data && !data.error) {
+    if (data && !data.error && !data.running) {
       renderSettingsEditor(data.settings || [], data.running);
       document.getElementById('settingsList').style.display = 'grid';
       document.getElementById('loadSettingsBtn').textContent = 'Masquer les réglages';
       settingsVisible = true;
+      showToast('Serveur arrêté — réglages modifiables');
+      break;
     }
-    refreshStatus();
-  }, 4000);
+    if (attempt === maxAttempts - 1) showToast('Le serveur met du temps à s\'arrêter, réessaie dans un instant');
+    else await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  btn.disabled = false;
+  refreshStatus();
 });
 
 document.getElementById('loadSettingsBtn').addEventListener('click', async () => {
