@@ -1,17 +1,18 @@
-// Carte en direct : positions des joueurs (API REST location_x/y), marqueurs voyage rapide et
-// tours de boss, zoom/pan, regroupement des joueurs proches. Fond : public/map.png si présent
-// (image couvrant les coordonnées carte -1000..1000), sinon grille de secours.
+// Carte en direct : positions et pseudos des joueurs (API REST location_x/y), zoom/pan,
+// regroupement des joueurs proches. Fond : public/map.png (image couvrant les coordonnées
+// carte -1000..1000), sinon grille de secours si le fichier est absent.
 (function () {
   const canvas = document.getElementById('mapCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
   const MAP_EXTENT = 1000; // coordonnées carte du jeu : -1000..1000 sur les deux axes
+  // Conversion coordonnées monde (API REST) -> coordonnées carte, constante communautaire.
+  const TRANSFORM = { offsetX: 123888, offsetY: -158000, scale: 459.617 };
 
   // Vue : centre (coordonnées carte) + zoom (pixels CSS par unité carte)
   const view = { x: 0, y: 0, scale: 0.28 };
   let players = [];
-  let markers = { transform: { offsetX: 123888, offsetY: -158000, scale: 459.617 }, bossTowers: [], fastTravel: [] };
 
   // Image de fond optionnelle
   const mapImage = new Image();
@@ -20,16 +21,9 @@
   mapImage.onerror = () => { mapImageReady = false; }; // pas d'image fournie : on garde la grille
   mapImage.src = '/map.png';
 
-  fetch('/map-markers.json')
-    .then(r => (r.ok ? r.json() : null))
-    .then(data => { if (data) { markers = { ...markers, ...data }; draw(); } })
-    .catch(() => {});
-
   // Coordonnées monde (API REST) -> coordonnées carte du jeu
   function worldToMap(wx, wy) {
-    const t = markers.transform || {};
-    const scale = t.scale || 459.617;
-    return { x: (wx + (t.offsetX ?? 123888)) / scale, y: (wy + (t.offsetY ?? -158000)) / scale };
+    return { x: (wx + TRANSFORM.offsetX) / TRANSFORM.scale, y: (wy + TRANSFORM.offsetY) / TRANSFORM.scale };
   }
 
   // Coordonnées carte -> pixels CSS du canvas (nord en haut : y carte croissant vers le haut)
@@ -81,31 +75,6 @@
     }
     ctx.strokeStyle = 'rgba(139, 150, 165, 0.35)';
     ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-    // Axes centraux + libellés de coordonnées
-    ctx.strokeStyle = 'rgba(226, 152, 74, 0.25)';
-    const ax = toScreen(0, MAP_EXTENT); const ax2 = toScreen(0, -MAP_EXTENT);
-    ctx.beginPath(); ctx.moveTo(ax.x, ax.y); ctx.lineTo(ax2.x, ax2.y); ctx.stroke();
-    const ay = toScreen(-MAP_EXTENT, 0); const ay2 = toScreen(MAP_EXTENT, 0);
-    ctx.beginPath(); ctx.moveTo(ay.x, ay.y); ctx.lineTo(ay2.x, ay2.y); ctx.stroke();
-    ctx.fillStyle = 'rgba(139, 150, 165, 0.5)';
-    ctx.font = '11px monospace';
-    [-1000, -500, 0, 500, 1000].forEach(v => {
-      const p = toScreen(v, 0);
-      ctx.fillText(String(v), p.x + 3, p.y - 4);
-    });
-  }
-
-  function drawMarker(m, color, symbol) {
-    const p = toScreen(m.x, m.y);
-    if (p.x < -20 || p.y < -20 || p.x > canvas.clientWidth + 20 || p.y > canvas.clientHeight + 20) return;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(231, 235, 240, 0.85)';
-    ctx.font = '10px sans-serif';
-    if (view.scale > 0.22) ctx.fillText(`${symbol} ${m.name}`, p.x + 8, p.y + 3);
-    else ctx.fillText(symbol, p.x + 7, p.y + 3);
   }
 
   // Regroupe les joueurs dont les positions écran sont à moins de `radius` px (glouton, suffisant
@@ -157,12 +126,6 @@
   function draw() {
     resize();
     drawBackground();
-    if (document.getElementById('mapShowTravel').checked) {
-      (markers.fastTravel || []).forEach(m => drawMarker(m, '#5fb87a', '◈'));
-    }
-    if (document.getElementById('mapShowTowers').checked) {
-      (markers.bossTowers || []).forEach(m => drawMarker(m, '#d9634f', '♜'));
-    }
     drawPlayers();
   }
 
@@ -192,8 +155,6 @@
     draw();
   }, { passive: false });
 
-  document.getElementById('mapShowTravel').addEventListener('change', draw);
-  document.getElementById('mapShowTowers').addEventListener('change', draw);
   window.addEventListener('resize', draw);
 
   // app.js pousse la liste des joueurs à chaque rafraîchissement du statut
