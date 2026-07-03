@@ -9,13 +9,16 @@ des notifications Discord, et bien plus.
 
 ## ⬇️ Télécharger
 
-**[Dernière version](../../releases/latest)** — `PalworldDashboardLauncher.exe`
+**[Dernière version](../../releases/latest)** — `PalworldDashboardLauncher-Setup.exe`
 
-1. Télécharge l'exe ci-dessus.
-2. Clic droit → **Exécuter en tant qu'administrateur** (nécessaire pour créer les services Windows
-   et la règle de pare-feu).
-3. Suis l'assistant : il installe SteamCMD + le serveur Palworld, configure les services, et te
-   laisse gérer ton serveur depuis le dashboard.
+1. Télécharge et double-clique le Setup : Windows demande l'élévation (UAC) automatiquement
+   (nécessaire pour créer les services Windows et la règle de pare-feu).
+2. Suis l'assistant d'installation (dossier modifiable, raccourcis Bureau/menu Démarrer créés).
+   Contrairement à un exécutable portable, l'installation ne se fait qu'une fois — les lancements
+   suivants sont quasi instantanés.
+3. Une fois installé, lance **« Palworld Dashboard »** depuis le menu Démarrer : il installe
+   SteamCMD + le serveur Palworld, configure les services, et te laisse gérer ton serveur depuis
+   le dashboard.
 
 ## Ce que ça permet
 
