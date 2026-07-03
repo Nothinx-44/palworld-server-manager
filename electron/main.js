@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, screen, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const crypto = require('crypto');
 
 // --- Dossier de base inscriptible, partagé avec le service dashboard ---
@@ -21,19 +20,11 @@ const { ensureNssm } = require('../lib/nssmSetup');
 const dashboardService = require('../lib/dashboardService');
 const runtime = require('../lib/runtime');
 const users = require('../lib/users');
+// getLocalIp de networkInfo : préfère la vraie IP LAN (192.168.x) aux adaptateurs VPN/virtuels
+const { getLocalIp } = require('../lib/networkInfo');
 
 const APP_ROOT = path.join(__dirname, '..');
 const getPort = () => process.env.PORT || '3000';
-
-function getLocalIp() {
-  const ifaces = os.networkInterfaces();
-  for (const name of Object.keys(ifaces)) {
-    for (const net of ifaces[name] || []) {
-      if (net.family === 'IPv4' && !net.internal) return net.address;
-    }
-  }
-  return '127.0.0.1';
-}
 
 // Secrets/valeurs minimales pour que le service dashboard démarre correctement dès le 1er lancement.
 function ensureBaseEnv() {

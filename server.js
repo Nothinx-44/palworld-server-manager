@@ -116,8 +116,13 @@ app.post('/api/login', loginLimiter, (req, res) => {
     return res.status(401).json({ error: 'invalid_credentials' });
   }
   const user = users.findUser(username);
-  req.session.user = { username: user.username, role: user.role || 'admin' };
-  res.json({ ok: true });
+  // Nouvel ID de session à la connexion : un ID capturé avant le login ne devient jamais une
+  // session authentifiée (anti fixation de session).
+  req.session.regenerate(err => {
+    if (err) return res.status(500).json({ error: 'session_error' });
+    req.session.user = { username: user.username, role: user.role || 'admin' };
+    res.json({ ok: true });
+  });
 });
 
 app.post('/api/logout', (req, res) => {
