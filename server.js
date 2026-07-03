@@ -297,25 +297,20 @@ function restartLocked() {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Le service NSSM du serveur est configuré avec AppExit=Restart (relance auto après crash).
-// Conséquence : après un arrêt volontaire via l'API Palworld (shutdown/stop), NSSM relancerait
-// le serveur ~5 s après la sortie du process. On force donc le service en état STOPPED une fois
-// le process sorti, pour que l'arrêt volontaire tienne (sans perdre la relance anti-crash).
-// Arrêt différé en attente : mémorisé pour pouvoir l'annuler si l'utilisateur redémarre le
-// serveur avant qu'il ne se déclenche (sinon on couperait le serveur qu'il vient de relancer).
-let pendingStopTimer = null;
-
-function confirmServiceStopped(delayMs) {
-  if (pendingStopTimer) clearTimeout(pendingStopTimer);
-  pendingStopTimer = setTimeout(() => {
-    pendingStopTimer = null;
-    runNssm(['stop', getServiceName()]).catch(() => {});
-  }, delayMs);
+// Le service NSSM du serveur est configuré avec AppExit=Restart : NSSM relance automatiquement le
+// process s'il sort (protection anti-crash). Problème : un arrêt volontaire via l'API Palworld fait
+// sortir le process de lui-même, ce que NSSM interprète comme un crash → il le relance ~5 s plus
+// tard. Plutôt que de courir après avec un `nssm stop` différé (dépendant du timing, peu fiable),
+// on DÉSARME la relance auto le temps de l'arrêt/redémarrage volontaire, et on la RÉARME au
+// démarrage. `nssm set` échoue silencieusement en no-op si le service n'existe pas (mode dev/mock).
+function setAutoRestart(enabled) {
+  return runNssm(['set', getServiceName(), 'AppExit', 'Default', enabled ? 'Restart' : 'Exit'])
+    .catch(() => {});
 }
 
-// Démarre le service en annulant d'abord tout arrêt différé encore en attente.
-function startService() {
-  if (pendingStopTimer) { clearTimeout(pendingStopTimer); pendingStopTimer = null; }
+// Démarre le service en réarmant d'abord la relance anti-crash (désarmée par le dernier arrêt).
+async function startService() {
+  await setAutoRestart(true);
   return runNssm(['start', getServiceName()]);
 }
 
@@ -358,14 +353,14 @@ function scheduleRestart(minutes, by) {
 // Séquence commune aux redémarrages manuel et planifié : arrêt propre (avec arrêt forcé en
 // secours), vérification de mise à jour SteamCMD, puis relance du service.
 async function runRestartSequence(stopMessage, waittime = 10) {
+  await setAutoRestart(false); // désarme la relance auto le temps de la manip (réarmée par startService)
   try {
     await gracefulStop(stopMessage, waittime);
   } catch {
     try { await runNssm(['stop', getServiceName()]); } catch (_) {}
   }
   await sleep((waittime + 5) * 1000);
-  // Neutralise la relance auto NSSM (AppExit=Restart) : sans ça, le serveur serait relancé
-  // pendant la vérification SteamCMD, qui échouerait sur des fichiers verrouillés.
+  // S'assure que le process est bien sorti avant que SteamCMD ne touche aux fichiers.
   try { await runNssm(['stop', getServiceName()]); } catch (_) {}
   try {
     const result = await steamUpdate.runUpdate();
@@ -393,9 +388,9 @@ app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
 app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   const waittime = 10;
+  await setAutoRestart(false); // arrêt volontaire : NSSM ne doit pas relancer quand le process sort
   try {
     await gracefulStop('Arrêt du serveur demandé depuis le dashboard.', waittime);
-    confirmServiceStopped((waittime + 2) * 1000);
     activityLog.log(req.session.user.username, 'stop');
     discord.notify(`⏹️ Arrêt du serveur demandé par **${req.session.user.username}**`);
     res.json({ ok: true, waittime });
@@ -406,6 +401,7 @@ app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
       discord.notify(`⏹️ Arrêt forcé du serveur par **${req.session.user.username}** (API injoignable)`);
       res.json({ ok: true, forced: true });
     } catch (nssmErr) {
+      await setAutoRestart(true); // échec de l'arrêt : ne pas laisser l'anti-crash désarmé
       res.status(500).json({ error: String(nssmErr) });
     }
   }
@@ -498,19 +494,16 @@ app.post('/api/save', requireAuth, requireAdmin, async (req, res) => {
 app.post('/api/force-stop', requireAuth, requireAdmin, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   try {
-    await getPalworldApi().post('/v1/api/stop', {});
-    confirmServiceStopped(2000);
+    // Arrêt immédiat via NSSM directement (intentionnel → pas de relance auto), plus fiable que
+    // l'API de jeu quand on force l'arrêt justement parce que le serveur ne répond plus.
+    await setAutoRestart(false);
+    await runNssm(['stop', getServiceName()]);
     activityLog.log(req.session.user.username, 'force-stop');
     discord.notify(`🛑 Arrêt forcé (immédiat) du serveur par **${req.session.user.username}**`);
     res.json({ ok: true });
   } catch (err) {
-    try {
-      await runNssm(['stop', getServiceName()]);
-      activityLog.log(req.session.user.username, 'force-stop');
-      res.json({ ok: true, forced: true });
-    } catch (nssmErr) {
-      res.status(500).json({ error: String(nssmErr) });
-    }
+    await setAutoRestart(true); // échec : ne pas laisser l'anti-crash désarmé
+    res.status(500).json({ error: String(err) });
   }
 });
 
