@@ -30,6 +30,7 @@ const plugins = require('./lib/plugins');
 const { updateEnvFile } = require('./lib/envFile');
 const paldefenderApi = require('./lib/paldefenderApi');
 const logTail = require('./lib/logTail');
+const dashboardUpdate = require('./lib/dashboardUpdate');
 
 // ---------- Config ----------
 const PORT = process.env.PORT || 3000;
@@ -756,6 +757,59 @@ app.get('/api/backups/:filename', requireAuth, (req, res) => {
   res.download(filePath);
 });
 
+// Import d'une sauvegarde externe (zip streamé directement sur disque, jamais chargé en
+// mémoire) : elle rejoint la liste des sauvegardes et devient restaurable comme les autres.
+// Utile pour migrer un monde depuis une autre machine.
+const MAX_IMPORT_BYTES = 4 * 1024 * 1024 * 1024; // 4 Go
+app.post('/api/backups/import', requireAuth, requireManager, (req, res) => {
+  const backupDir = process.env.BACKUP_DIR;
+  if (!backupDir) return res.status(400).json({ error: 'not_configured' });
+  fs.mkdirSync(backupDir, { recursive: true });
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `import_${stamp}.zip`;
+  const filePath = path.join(backupDir, filename);
+  const out = fs.createWriteStream(filePath);
+  let bytes = 0;
+  let failed = false;
+
+  const abort = (status, error) => {
+    if (failed) return;
+    failed = true;
+    out.destroy();
+    fs.unlink(filePath, () => {});
+    if (!res.headersSent) res.status(status).json({ error });
+    req.destroy();
+  };
+
+  req.on('data', chunk => {
+    bytes += chunk.length;
+    if (bytes > MAX_IMPORT_BYTES) abort(413, 'too_large');
+  });
+  req.on('error', () => abort(500, 'upload_failed'));
+  out.on('error', () => abort(500, 'write_failed'));
+  req.pipe(out);
+
+  out.on('finish', () => {
+    if (failed) return;
+    // Signature zip "PK\x03\x04" : rejette les fichiers qui ne sont pas de vrais zip
+    let magic = '';
+    try {
+      const fd = fs.openSync(filePath, 'r');
+      const buf = Buffer.alloc(4);
+      fs.readSync(fd, buf, 0, 4, 0);
+      fs.closeSync(fd);
+      magic = buf.toString('latin1');
+    } catch { /* fichier illisible : rejeté ci-dessous */ }
+    if (magic !== 'PK\x03\x04') {
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({ error: 'not_a_zip' });
+    }
+    activityLog.log(req.session.user.username, 'backup-import', filename);
+    res.json({ ok: true, filename });
+  });
+});
+
 // Restauration d'une sauvegarde (admin/user, serveur éteint uniquement). Écrase SAVE_PATH avec
 // le contenu du zip choisi ; une sauvegarde de sécurité du monde actuel est prise avant, pour
 // pouvoir revenir en arrière en cas d'erreur.
@@ -818,6 +872,11 @@ app.get('/api/activity', requireAuth, (req, res) => {
   res.json({ entries: activityLog.list(50) });
 });
 
+// Nouvelle version du dashboard disponible ? (comparée aux releases GitHub publiques)
+app.get('/api/dashboard/update', requireAuth, async (req, res) => {
+  res.json(await dashboardUpdate.check());
+});
+
 // ---------- Console serveur (admin/user uniquement : peut contenir des IP de joueurs) ----------
 // Alimentée par la redirection stdout/stderr configurée sur le service NSSM (voir
 // lib/serverSetup.js setupNssmService) : disponible dès que le service a été (ré)installé avec
@@ -828,6 +887,21 @@ app.get('/api/console', requireAuth, requireManager, (req, res) => {
   const lines = logTail.readTail(logPath, 100 * 1024);
   if (lines === null) return res.status(404).json({ error: 'log_not_found' });
   res.json({ lines: lines.slice(-300), path: logPath });
+});
+
+// Active la redirection console sur le service existant (pour les serveurs installés avant que
+// la console existe), sans passer par une réinstallation complète des services.
+app.post('/api/console/enable', requireAuth, requireManager, async (req, res) => {
+  try {
+    const logPath = await serverSetup.enableConsoleRedirect();
+    activityLog.log(req.session.user.username, 'console-enable');
+    res.json({ ok: true, path: logPath });
+  } catch (err) {
+    const message = String(err.message || err);
+    if (message === 'server_not_installed') return res.status(404).json({ error: 'not_configured' });
+    if (message === 'service_not_registered') return res.status(404).json({ error: 'service_not_registered' });
+    res.status(500).json({ error: message });
+  }
 });
 
 // ---------- Plugins (UE4SS / PalDefender), admin/user, serveur éteint pour installer/retirer ----------

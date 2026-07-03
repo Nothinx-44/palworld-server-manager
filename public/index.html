@@ -29,6 +29,8 @@
       <button class="tab-btn" data-tab="accounts">Comptes</button>
     </nav>
 
+    <p class="warning" id="updateBanner" style="display:none;"></p>
+
     <!-- ============ TABLEAU DE BORD ============ -->
     <section class="tab-content" id="tab-dash">
       <div class="grid">
@@ -179,8 +181,11 @@
 
       <div class="panel" data-manager-only>
         <h2>Console serveur</h2>
-        <div class="btn-row">
+        <div class="btn-row" style="flex-wrap:wrap; align-items:center;">
           <button class="action" id="consoleRefreshBtn" type="button">Rafraîchir</button>
+          <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="consoleAutoRefresh"> Auto (5 s)</label>
+          <input type="text" id="consoleFilter" placeholder="Filtrer les lignes…" style="flex:1; min-width:160px;">
+          <button class="action primary" id="consoleEnableBtn" type="button" style="display:none;">Activer la console</button>
         </div>
         <pre class="setup-log" id="consoleLog" style="margin-top:10px;">Clique sur "Rafraîchir" pour charger la console.</pre>
       </div>
@@ -194,6 +199,8 @@
           <h2>Sauvegardes</h2>
           <div class="btn-row" data-manager-only>
             <button class="action primary" id="backupBtn">Sauvegarder maintenant</button>
+            <button class="action" id="importBackupBtn" type="button">Importer un zip…</button>
+            <input type="file" id="importBackupFile" accept=".zip" style="display:none;">
           </div>
           <ul class="backup-list" id="backupList"></ul>
         </div>

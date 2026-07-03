@@ -250,6 +250,15 @@ async function refreshDiskSpace() {
   banner.style.display = 'block';
 }
 
+// Bannière "nouvelle version disponible" (vérifiée une fois par session, cache 6h côté serveur)
+async function refreshDashboardUpdate() {
+  const data = await api('GET', '/api/dashboard/update');
+  if (!data || !data.updateAvailable) return;
+  const banner = document.getElementById('updateBanner');
+  banner.innerHTML = `⬆️ Nouvelle version du dashboard disponible : <strong>v${escapeHtml(data.latest)}</strong> (tu utilises la v${escapeHtml(data.current)}) — <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener">télécharger sur GitHub</a>`;
+  banner.style.display = 'block';
+}
+
 async function refreshNetworkInfo() {
   const data = await api('GET', '/api/network-info');
   if (!data) return;
@@ -431,6 +440,8 @@ async function refreshActivity() {
     'backup-schedule-change': 'a modifié le planning des sauvegardes',
     'restart-schedule-change': 'a modifié le planning de redémarrage',
     'backup-restore': 'a restauré une sauvegarde',
+    'backup-import': 'a importé une sauvegarde',
+    'console-enable': 'a activé la console serveur',
     'backup-restore-error': 'a échoué à restaurer une sauvegarde',
     'plugin-install': 'a installé un plugin',
     'plugin-uninstall': 'a désinstallé un plugin',
@@ -575,6 +586,37 @@ document.getElementById('restartBtn').addEventListener('click', async () => {
   const r = await api('POST', '/api/restart');
   showToast(r && r.ok ? 'Redémarrage en cours…' : actionError(r, 'Échec du redémarrage'));
   setTimeout(refreshStatus, 20000);
+});
+
+// Import d'une sauvegarde externe : le zip est envoyé tel quel (streamé côté serveur) et
+// rejoint la liste des sauvegardes restaurables.
+document.getElementById('importBackupBtn').addEventListener('click', () => {
+  document.getElementById('importBackupFile').click();
+});
+
+document.getElementById('importBackupFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = ''; // permet de réimporter le même fichier plus tard
+  if (!file) return;
+  if (!/\.zip$/i.test(file.name)) { showToast('Choisis un fichier .zip'); return; }
+  showToast(`Import de ${file.name} en cours…`);
+  try {
+    const res = await fetch('/api/backups/import', { method: 'POST', body: file });
+    const r = await res.json().catch(() => null);
+    if (r && r.ok) {
+      showToast(`Sauvegarde importée : ${r.filename}`);
+      refreshBackups();
+      refreshActivity();
+    } else {
+      showToast(
+        r && r.error === 'not_a_zip' ? 'Ce fichier n\'est pas un zip valide'
+        : r && r.error === 'too_large' ? 'Fichier trop volumineux (4 Go max)'
+        : r && r.error === 'not_configured' ? 'BACKUP_DIR non configuré'
+        : 'Échec de l\'import');
+    }
+  } catch {
+    showToast('Échec de l\'import (connexion interrompue ?)');
+  }
 });
 
 document.getElementById('backupBtn').addEventListener('click', async () => {
@@ -1216,22 +1258,58 @@ function activateTab(name) {
   if (name === 'plugins') { refreshPlugins(); refreshPaldefenderApiStatus(); }
 }
 
+let consoleLines = [];
+
+function renderConsole() {
+  const pre = document.getElementById('consoleLog');
+  const q = document.getElementById('consoleFilter').value.trim().toLowerCase();
+  const lines = q ? consoleLines.filter(l => l.toLowerCase().includes(q)) : consoleLines;
+  pre.textContent = lines.length
+    ? lines.join('\n')
+    : (q ? '(aucune ligne ne correspond au filtre)' : '(console vide pour le moment)');
+  pre.scrollTop = pre.scrollHeight;
+}
+
 async function refreshConsole() {
   const pre = document.getElementById('consoleLog');
   if (!pre) return;
+  const enableBtn = document.getElementById('consoleEnableBtn');
   const data = await api('GET', '/api/console');
   if (!data || data.error) {
     pre.textContent =
       data && data.error === 'not_configured' ? 'Serveur pas encore installé.'
-      : data && data.error === 'log_not_found' ? 'Aucune console disponible — clique "(Ré)installer les services" dans l\'onglet Réglages pour l\'activer sur ce serveur.'
+      : data && data.error === 'log_not_found' ? 'Console pas encore active sur ce serveur — clique "Activer la console" ci-dessus, puis redémarre le serveur.'
       : 'Impossible de charger la console.';
+    enableBtn.style.display = (data && data.error === 'log_not_found') ? 'inline-block' : 'none';
     return;
   }
-  pre.textContent = data.lines.length ? data.lines.join('\n') : '(console vide pour le moment)';
-  pre.scrollTop = pre.scrollHeight;
+  enableBtn.style.display = 'none';
+  consoleLines = data.lines || [];
+  renderConsole();
 }
 
 document.getElementById('consoleRefreshBtn').addEventListener('click', refreshConsole);
+document.getElementById('consoleFilter').addEventListener('input', renderConsole);
+
+document.getElementById('consoleEnableBtn').addEventListener('click', async () => {
+  const r = await api('POST', '/api/console/enable', {});
+  if (r && r.ok) {
+    showToast('Console activée — redémarre le serveur pour qu\'elle commence à enregistrer');
+    refreshConsole();
+  } else {
+    showToast(r && r.error === 'service_not_registered'
+      ? 'Service Windows introuvable — (ré)installe les services depuis le lanceur'
+      : 'Échec de l\'activation de la console');
+  }
+});
+
+// Auto-refresh : uniquement quand la case est cochée ET que l'onglet Activité est visible
+// (inutile de solliciter le serveur quand la console n'est pas à l'écran).
+setInterval(() => {
+  const auto = document.getElementById('consoleAutoRefresh');
+  const tab = document.getElementById('tab-activity');
+  if (auto && auto.checked && tab && tab.classList.contains('active') && isManager()) refreshConsole();
+}, 5000);
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => activateTab(btn.dataset.tab));
@@ -1252,6 +1330,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   refreshDiskSpace();
   refreshNetworkInfo();
   refreshPaldefenderApiStatus();
+  refreshDashboardUpdate();
   setInterval(refreshStatus, 15000);
   setInterval(refreshActivity, 30000);
   setInterval(refreshPlayerHistory, 30000);
