@@ -1,4 +1,4 @@
-# 🐾 Palworld Server Manager
+# 🐾 Pal Launcher Server Manager
 
 **Pilote et gère ton serveur Palworld dédié (Windows) depuis une seule fenêtre — pas de ligne de
 commande, pas d'édition de fichiers de config à la main.**
@@ -9,14 +9,14 @@ des notifications Discord, et bien plus.
 
 ## ⬇️ Télécharger
 
-**[Dernière version](../../releases/latest)** — `PalworldDashboardLauncher-Setup.exe`
+**[Dernière version](../../releases/latest)** — `PalLauncherServerManager-Setup.exe`
 
 1. Télécharge et double-clique le Setup : Windows demande l'élévation (UAC) automatiquement
    (nécessaire pour créer les services Windows et la règle de pare-feu).
 2. Suis l'assistant d'installation (dossier modifiable, raccourcis Bureau/menu Démarrer créés).
    Contrairement à un exécutable portable, l'installation ne se fait qu'une fois — les lancements
    suivants sont quasi instantanés.
-3. Une fois installé, lance **« Palworld Dashboard »** depuis le menu Démarrer : il installe
+3. Une fois installé, lance **« Pal Launcher Server Manager »** depuis le menu Démarrer : il installe
    SteamCMD + le serveur Palworld, configure les services, et te laisse gérer ton serveur depuis
    le dashboard.
 
@@ -41,5 +41,5 @@ des notifications Discord, et bien plus.
 
 ---
 
-*Palworld Server Manager est un outil indépendant, non affilié à Pocketpair, Inc. « Palworld »
+*Pal Launcher Server Manager est un outil indépendant, non affilié à Pocketpair, Inc. « Palworld »
 est une marque déposée de son propriétaire respectif.*
