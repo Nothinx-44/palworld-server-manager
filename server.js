@@ -22,13 +22,15 @@ const steamUpdate = require('./lib/steamUpdate');
 const serverSetup = require('./lib/serverSetup');
 const bans = require('./lib/bans');
 const backupSchedule = require('./lib/backupSchedule');
+const restartScheduleCfg = require('./lib/restartSchedule');
+const diskSpace = require('./lib/diskSpace');
+const backupRestore = require('./lib/backupRestore');
+const logTail = require('./lib/logTail');
 
 // ---------- Config ----------
 const PORT = process.env.PORT || 3000;
 // SAVE_PATH / BACKUP_DIR sont lus dynamiquement (process.env) là où ils sont utilisés,
 // et non figés ici, pour que l'assistant d'installation puisse les définir à chaud.
-const RESTART_CRON = process.env.RESTART_CRON || ''; // vide = désactivé
-const RESTART_WARNING_MINUTES = parseInt(process.env.RESTART_WARNING_MINUTES || '5', 10);
 
 // Variables nécessaires au fonctionnement normal : on prévient au démarrage plutôt que
 // de laisser échouer silencieusement la première fois qu'une route en a besoin.
@@ -662,6 +664,19 @@ app.post('/api/cancel-restart', requireAuth, requireManager, async (req, res) =>
   res.json({ ok: true });
 });
 
+// Planning du redémarrage récurrent (lecture pour tous, modification pour admin/user)
+app.get('/api/restart/schedule', requireAuth, (req, res) => {
+  res.json({ schedule: restartScheduleCfg.load(), crons: restartScheduleCfg.toCronExpressions() });
+});
+
+app.post('/api/restart/schedule', requireAuth, requireManager, (req, res) => {
+  const saved = restartScheduleCfg.save(req.body || {});
+  rescheduleRestarts();
+  activityLog.log(req.session.user.username, 'restart-schedule-change',
+    saved.enabled ? `${saved.times.join(', ')} — ${saved.days.length}j/sem` : 'désactivé');
+  res.json({ ok: true, schedule: saved, crons: restartScheduleCfg.toCronExpressions(saved) });
+});
+
 // ---------- Sauvegardes (admin déclenche, tout le monde peut consulter/télécharger) ----------
 function makeBackup() {
   return new Promise((resolve, reject) => {
@@ -732,6 +747,30 @@ app.get('/api/backups/:filename', requireAuth, (req, res) => {
   res.download(filePath);
 });
 
+// Restauration d'une sauvegarde (admin/user, serveur éteint uniquement). Écrase SAVE_PATH avec
+// le contenu du zip choisi ; une sauvegarde de sécurité du monde actuel est prise avant, pour
+// pouvoir revenir en arrière en cas d'erreur.
+app.post('/api/backups/:filename/restore', requireAuth, requireManager, async (req, res) => {
+  if (await isGameServerActive()) return res.status(409).json({ error: 'server_running' });
+  const savePath = process.env.SAVE_PATH;
+  const backupDir = process.env.BACKUP_DIR;
+  if (!savePath || !backupDir) return res.status(400).json({ error: 'not_configured' });
+  const filename = path.basename(req.params.filename); // anti path traversal
+  const backupZipPath = path.join(backupDir, filename);
+  if (!fs.existsSync(backupZipPath)) return res.status(404).json({ error: 'not_found' });
+
+  try {
+    const { safetyFilename } = await backupRestore.restoreBackup({ backupZipPath, savePath, backupDir });
+    activityLog.log(req.session.user.username, 'backup-restore', filename);
+    discord.notify(`♻️ Sauvegarde **${filename}** restaurée par **${req.session.user.username}**` +
+      (safetyFilename ? ` (monde précédent conservé dans ${safetyFilename})` : ''));
+    res.json({ ok: true, safetyFilename });
+  } catch (err) {
+    activityLog.log(req.session.user.username, 'backup-restore-error', String(err.message || err));
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
 // Planning des sauvegardes automatiques (lecture pour tous, modification pour admin/user)
 app.get('/api/backup/schedule', requireAuth, (req, res) => {
   res.json({ schedule: backupSchedule.load(), crons: backupSchedule.toCronExpressions() });
@@ -748,6 +787,18 @@ app.post('/api/backup/schedule', requireAuth, requireManager, (req, res) => {
 // ---------- Journal d'activité (lecture pour tout le monde) ----------
 app.get('/api/activity', requireAuth, (req, res) => {
   res.json({ entries: activityLog.list(50) });
+});
+
+// ---------- Console serveur (admin/user uniquement : peut contenir des IP de joueurs) ----------
+// Alimentée par la redirection stdout/stderr configurée sur le service NSSM (voir
+// lib/serverSetup.js setupNssmService) : disponible dès que le service a été (ré)installé avec
+// cette version. Sur une install plus ancienne, clique "(Ré)installer les services" pour l'activer.
+app.get('/api/console', requireAuth, requireManager, (req, res) => {
+  const logPath = serverSetup.getCurrentConsoleLogPath();
+  if (!logPath) return res.status(404).json({ error: 'not_configured' });
+  const lines = logTail.readTail(logPath, 100 * 1024);
+  if (lines === null) return res.status(404).json({ error: 'log_not_found' });
+  res.json({ lines: lines.slice(-300), path: logPath });
 });
 
 // ---------- Historique des joueurs (lecture pour tout le monde) ----------
@@ -779,30 +830,62 @@ function rescheduleBackups() {
 }
 rescheduleBackups();
 
-if (RESTART_CRON) {
-  cron.schedule(RESTART_CRON, async () => {
-    if (restartInProgress) {
-      activityLog.log('scheduler', 'restart-skipped', 'un redémarrage était déjà en cours');
-      return;
-    }
-    restartInProgress = true; // pris dès l'avertissement : la fenêtre des N minutes fait partie du cycle
-    try {
-      activityLog.log('scheduler', 'restart-warning');
-      try {
-        await getPalworldApi().post('/v1/api/announce', {
-          message: `Redémarrage automatique du serveur dans ${RESTART_WARNING_MINUTES} minutes.`
-        });
-      } catch (_) {}
-
-      await sleep(RESTART_WARNING_MINUTES * 60 * 1000);
-      activityLog.log('scheduler', 'restart');
-      discord.notify('🔄 Redémarrage planifié en cours (avec vérification de mise à jour)…');
-      await runRestartSequence('Redémarrage automatique planifié.', 10);
-    } finally {
-      restartInProgress = false;
-    }
+// Redémarrages récurrents : (re)programmés dynamiquement depuis la config éditable
+// (data/restart-schedule.json), une tâche cron par horaire. Au déclenchement, réutilise
+// scheduleRestart() (mêmes avertissements décroissants, même bannière/annulation que le
+// redémarrage ponctuel du tableau de bord) — donc annulable depuis l'UI comme n'importe quel
+// autre redémarrage programmé.
+let restartJobs = [];
+function rescheduleRestarts() {
+  restartJobs.forEach(job => job.stop());
+  restartJobs = [];
+  const cfg = restartScheduleCfg.load();
+  restartScheduleCfg.toCronExpressions(cfg).forEach(expr => {
+    if (!cron.validate(expr)) return;
+    restartJobs.push(cron.schedule(expr, () => {
+      if (restartLocked()) {
+        activityLog.log('scheduler', 'restart-skipped', 'un redémarrage était déjà en cours');
+        return;
+      }
+      activityLog.log('scheduler', 'restart-scheduled', `${cfg.warningMinutes} min (récurrent)`);
+      discord.notify(`🕒 Redémarrage automatique programmé dans ${cfg.warningMinutes} min…`);
+      scheduleRestart(cfg.warningMinutes, 'scheduler');
+    }));
   });
 }
+rescheduleRestarts();
+
+// ---------- Surveillance de l'espace disque ----------
+const DISK_SPACE_WARN_MB = parseInt(process.env.DISK_SPACE_WARN_MB || '2048', 10);
+// Mémorise les chemins déjà signalés sous le seuil, pour ne notifier qu'au moment où l'on
+// franchit le seuil (pas à chaque vérification périodique tant qu'on reste bas).
+let diskSpaceLow = {};
+
+function checkDiskSpace() {
+  const dirs = [...new Set([process.env.BACKUP_DIR, process.env.SAVE_PATH].filter(Boolean))];
+  return dirs.map(dir => {
+    const info = diskSpace.freeSpace(dir);
+    if (!info) return { path: dir, freeBytes: null, totalBytes: null, low: false };
+    const low = info.freeBytes < DISK_SPACE_WARN_MB * 1024 * 1024;
+    const freeMb = Math.round(info.freeBytes / 1024 / 1024);
+    if (low && !diskSpaceLow[dir]) {
+      diskSpaceLow[dir] = true;
+      activityLog.log('scheduler', 'disk-space-low', `${dir} — ${freeMb} Mo restants`);
+      discord.notify(`⚠️ Espace disque faible sur \`${dir}\` : ${freeMb} Mo restants (seuil ${DISK_SPACE_WARN_MB} Mo).`);
+    } else if (!low && diskSpaceLow[dir]) {
+      delete diskSpaceLow[dir];
+      discord.notify(`✅ Espace disque de nouveau suffisant sur \`${dir}\` (${freeMb} Mo).`);
+    }
+    return { path: dir, freeBytes: info.freeBytes, totalBytes: info.totalBytes, low };
+  });
+}
+
+app.get('/api/disk-space', requireAuth, (req, res) => {
+  res.json({ warnThresholdMb: DISK_SPACE_WARN_MB, disks: checkDiskSpace() });
+});
+
+checkDiskSpace(); // vérification immédiate au démarrage
+setInterval(checkDiskSpace, 30 * 60 * 1000);
 
 // Suivi des joueurs (sessions/temps de jeu) et watchdog anti-crash tournent en continu
 playerTracker.start(60000);

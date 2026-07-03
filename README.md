@@ -173,16 +173,47 @@ un rôle ne peut pas être contourné en bidouillant les requêtes.
 ### Édition des réglages du monde depuis le web
 
 Onglet "Réglages" (admin/user) : lecture et **édition directe** de `PalWorldSettings.ini`
-(difficulté, taux, PvP…) — les booléens en menus Oui/Non, mot de passe masqués. L'édition n'est
-autorisée que **serveur éteint** (Palworld ne relit ce fichier qu'au démarrage) ; un bouton "Forcer
-l'arrêt pour modifier" le stoppe au besoin. Un contrôle d'intégrité refuse toute modification qui
-casserait le format du fichier (ce qui ferait régénérer les valeurs par défaut par Palworld).
+(difficulté, taux, PvP…) — les booléens en menus Oui/Non, mots de passe masqués. L'édition n'est
+autorisée que **serveur éteint** (Palworld ne relit ce fichier qu'au démarrage) ; un bouton
+"Arrêter (avec sauvegarde) pour modifier" s'en charge au besoin (sauvegarde puis arrêt propre,
+comme le bouton "Arrêter" du tableau de bord). La détection "serveur éteint" combine l'état du
+service Windows ET la joignabilité de l'API REST Palworld, pour ne jamais laisser passer une
+édition si l'un des deux signaux indique une activité. Un contrôle d'intégrité refuse par ailleurs
+toute modification qui casserait le format du fichier (ce qui ferait régénérer les valeurs par
+défaut par Palworld).
 
 ### Sauvegardes automatiques configurables
 
 Onglet "Sauvegardes" : planning éditable depuis le web — activation, **plusieurs horaires par jour**,
 choix des **jours de la semaine**, et nombre de sauvegardes conservées. Stocké dans
 `data/backup-schedule.json`, appliqué immédiatement (sans redémarrage).
+
+### Redémarrage automatique récurrent configurable
+
+Onglet "Réglages" : même principe que les sauvegardes automatiques — activation, plusieurs
+horaires par jour, jours de la semaine, et délai d'avertissement aux joueurs (annonces
+décroissantes avant le redémarrage effectif, annulable comme un redémarrage programmé ponctuel).
+Remplace le `RESTART_CRON` figé dans le `.env` (repris comme valeur de départ au premier lancement
+si déjà configuré). Stocké dans `data/restart-schedule.json`.
+
+### Restauration de sauvegarde depuis le web
+
+Onglet "Sauvegardes" : bouton "Restaurer" sur chaque sauvegarde (admin/user, **serveur éteint
+uniquement**). Une sauvegarde de sécurité du monde actuel est prise automatiquement avant
+d'écraser `SAVE_PATH`, pour pouvoir revenir en arrière en cas d'erreur.
+
+### Alerte espace disque
+
+Le dashboard vérifie l'espace disque libre sur `BACKUP_DIR`/`SAVE_PATH` au démarrage puis toutes
+les 30 minutes ; sous le seuil `DISK_SPACE_WARN_MB` (2 Go par défaut), une alerte Discord et une
+bannière dans l'onglet "Sauvegardes" s'affichent (avec notification de retour à la normale).
+
+### Console serveur
+
+Onglet "Activité" (admin/user) : dernières lignes de la sortie console du serveur Palworld
+(stdout/stderr), redirigées vers un fichier `console.log` par le service NSSM (avec rotation à
+10 Mo). Disponible dès que le service a été (ré)installé avec cette version — sur une installation
+plus ancienne, clique "(Ré)installer les services" dans l'onglet Réglages pour l'activer.
 
 ### Journal d'activité
 

@@ -193,9 +193,52 @@ async function refreshBackups() {
     const li = document.createElement('li');
     const sizeMb = (b.size / 1024 / 1024).toFixed(1);
     const date = new Date(b.date).toLocaleString('fr-FR');
-    li.innerHTML = `<span>${date} — ${sizeMb} Mo</span><a href="/api/backups/${encodeURIComponent(b.filename)}">Télécharger</a>`;
+    const restoreBtn = isManager()
+      ? `<button class="icon-btn danger" data-restore="${escapeHtml(b.filename)}">Restaurer</button>`
+      : '';
+    li.innerHTML = `
+      <span>${date} — ${sizeMb} Mo</span>
+      <span class="row-actions">
+        <a href="/api/backups/${encodeURIComponent(b.filename)}">Télécharger</a>
+        ${restoreBtn}
+      </span>`;
     backupList.appendChild(li);
   });
+  backupList.querySelectorAll('[data-restore]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const filename = btn.dataset.restore;
+      if (!confirm(`Restaurer "${filename}" ? Le monde actuel sera remplacé (une sauvegarde de sécurité du monde actuel sera prise avant). Le serveur doit être éteint.`)) return;
+      btn.disabled = true;
+      const r = await api('POST', `/api/backups/${encodeURIComponent(filename)}/restore`);
+      btn.disabled = false;
+      if (r && r.ok) {
+        showToast(r.safetyFilename ? `Restauré (ancien monde sauvegardé sous ${r.safetyFilename})` : 'Restauré');
+        refreshBackups();
+        refreshActivity();
+      } else {
+        showToast(
+          r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord'
+          : r && r.error === 'not_configured' ? 'SAVE_PATH/BACKUP_DIR non configurés'
+          : 'Échec de la restauration');
+      }
+    });
+  });
+}
+
+function formatBytes(bytes) {
+  if (bytes == null) return '?';
+  const gb = bytes / 1024 / 1024 / 1024;
+  return gb >= 1 ? `${gb.toFixed(1)} Go` : `${Math.round(bytes / 1024 / 1024)} Mo`;
+}
+
+async function refreshDiskSpace() {
+  const data = await api('GET', '/api/disk-space');
+  const banner = document.getElementById('diskSpaceWarning');
+  if (!data || !data.disks || !data.disks.length) { banner.style.display = 'none'; return; }
+  const low = data.disks.filter(d => d.low);
+  if (!low.length) { banner.style.display = 'none'; return; }
+  banner.textContent = `⚠️ Espace disque faible : ${low.map(d => `${d.path} (${formatBytes(d.freeBytes)} libres)`).join(' — ')}.`;
+  banner.style.display = 'block';
 }
 
 async function refreshActivity() {
@@ -224,6 +267,10 @@ async function refreshActivity() {
     'update-apply': 'a lancé une mise à jour du serveur',
     'settings-change': 'a modifié les réglages du monde',
     'backup-schedule-change': 'a modifié le planning des sauvegardes',
+    'restart-schedule-change': 'a modifié le planning de redémarrage',
+    'backup-restore': 'a restauré une sauvegarde',
+    'backup-restore-error': 'a échoué à restaurer une sauvegarde',
+    'disk-space-low': 'alerte espace disque faible',
     'auto-restart': 'redémarrage automatique (watchdog)',
     'restart-warning': 'annonce de redémarrage planifié',
     'restart-skipped': 'redémarrage planifié ignoré (un autre était en cours)',
@@ -767,30 +814,26 @@ setupForm.addEventListener('submit', async (e) => {
 
 // ---------- Planificateur de sauvegardes automatiques ----------
 const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-let bkTimes = []; // heures "HH:MM" en cours d'édition
-let bkDays = [];  // jours 0..6 sélectionnés
 
-function renderBkDays() {
-  const row = document.getElementById('bkDays');
+// Widgets réutilisés par les deux planificateurs (sauvegardes et redémarrage) : sélecteur de
+// jours et liste d'heures avec ajout/retrait.
+function renderDayPicker(containerId, selectedDays, onToggle) {
+  const row = document.getElementById(containerId);
   row.innerHTML = '';
   DAY_LABELS.forEach((label, i) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'day-btn' + (bkDays.includes(i) ? ' on' : '');
+    btn.className = 'day-btn' + (selectedDays.includes(i) ? ' on' : '');
     btn.textContent = label;
-    btn.addEventListener('click', () => {
-      if (bkDays.includes(i)) bkDays = bkDays.filter(d => d !== i);
-      else bkDays.push(i);
-      renderBkDays();
-    });
+    btn.addEventListener('click', () => onToggle(i));
     row.appendChild(btn);
   });
 }
 
-function renderBkTimes() {
-  const list = document.getElementById('bkTimes');
+function renderTimeChips(containerId, times, onRemove) {
+  const list = document.getElementById(containerId);
   list.innerHTML = '';
-  bkTimes.slice().sort().forEach(t => {
+  times.slice().sort().forEach(t => {
     const chip = document.createElement('span');
     chip.className = 'time-chip';
     chip.textContent = t;
@@ -798,18 +841,37 @@ function renderBkTimes() {
     x.type = 'button';
     x.textContent = '×';
     x.title = 'Retirer';
-    x.addEventListener('click', () => { bkTimes = bkTimes.filter(v => v !== t); renderBkTimes(); });
+    x.addEventListener('click', () => onRemove(t));
     chip.appendChild(x);
     list.appendChild(chip);
   });
-  if (!bkTimes.length) list.innerHTML = '<span class="muted-hint">Aucune heure — ajoutes-en une.</span>';
+  if (!times.length) list.innerHTML = '<span class="muted-hint">Aucune heure — ajoutes-en une.</span>';
+}
+
+function daysSummary(days) {
+  return days.length >= 7 ? 'tous les jours' : days.map(d => DAY_LABELS[d]).join(', ');
+}
+
+// ---------- Sauvegardes automatiques ----------
+let bkTimes = []; // heures "HH:MM" en cours d'édition
+let bkDays = [];  // jours 0..6 sélectionnés
+
+function renderBkDays() {
+  renderDayPicker('bkDays', bkDays, i => {
+    bkDays = bkDays.includes(i) ? bkDays.filter(d => d !== i) : [...bkDays, i];
+    renderBkDays();
+  });
+}
+
+function renderBkTimes() {
+  renderTimeChips('bkTimes', bkTimes, t => { bkTimes = bkTimes.filter(v => v !== t); renderBkTimes(); });
 }
 
 function summarizeBk(schedule) {
   const el = document.getElementById('bkSummary');
-  if (!schedule.enabled) { el.textContent = '⏸️ Sauvegardes planifiées désactivées.'; return; }
-  const days = schedule.days.length >= 7 ? 'tous les jours' : schedule.days.map(d => DAY_LABELS[d]).join(', ');
-  el.textContent = `✅ ${schedule.times.join(', ')} — ${days} — ${schedule.keepCount} sauvegardes conservées.`;
+  el.textContent = !schedule.enabled
+    ? '⏸️ Sauvegardes planifiées désactivées.'
+    : `✅ ${schedule.times.join(', ')} — ${daysSummary(schedule.days)} — ${schedule.keepCount} sauvegardes conservées.`;
 }
 
 async function refreshBackupSchedule() {
@@ -847,6 +909,63 @@ document.getElementById('bkSaveBtn').addEventListener('click', async () => {
   else showToast('Échec de l\'enregistrement du planning');
 });
 
+// ---------- Redémarrage automatique récurrent ----------
+let rsTimes = [];
+let rsDays = [];
+
+function renderRsDays() {
+  renderDayPicker('rsDays', rsDays, i => {
+    rsDays = rsDays.includes(i) ? rsDays.filter(d => d !== i) : [...rsDays, i];
+    renderRsDays();
+  });
+}
+
+function renderRsTimes() {
+  renderTimeChips('rsTimes', rsTimes, t => { rsTimes = rsTimes.filter(v => v !== t); renderRsTimes(); });
+}
+
+function summarizeRs(schedule) {
+  const el = document.getElementById('rsSummary');
+  el.textContent = !schedule.enabled
+    ? '⏸️ Redémarrage récurrent désactivé.'
+    : `✅ ${schedule.times.join(', ')} — ${daysSummary(schedule.days)} — avertissement ${schedule.warningMinutes} min avant.`;
+}
+
+async function refreshRestartSchedule() {
+  const data = await api('GET', '/api/restart/schedule');
+  if (!data || !data.schedule) return;
+  const s = data.schedule;
+  document.getElementById('rsEnabled').checked = s.enabled;
+  document.getElementById('rsWarningMinutes').value = s.warningMinutes;
+  rsTimes = [...s.times];
+  rsDays = [...s.days];
+  renderRsDays();
+  renderRsTimes();
+  summarizeRs(s);
+}
+
+document.getElementById('rsAddTime').addEventListener('click', () => {
+  const val = document.getElementById('rsNewTime').value;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(val)) { showToast('Heure invalide'); return; }
+  if (!rsTimes.includes(val)) rsTimes.push(val);
+  renderRsTimes();
+});
+
+document.getElementById('rsSaveBtn').addEventListener('click', async () => {
+  const enabled = document.getElementById('rsEnabled').checked;
+  if (enabled && !rsTimes.length) { showToast('Ajoute au moins une heure'); return; }
+  if (enabled && !rsDays.length) { showToast('Sélectionne au moins un jour'); return; }
+  const body = {
+    enabled,
+    times: rsTimes,
+    days: rsDays,
+    warningMinutes: parseInt(document.getElementById('rsWarningMinutes').value, 10) || 5
+  };
+  const r = await api('POST', '/api/restart/schedule', body);
+  if (r && r.ok) { showToast('Planning enregistré'); summarizeRs(r.schedule); refreshActivity(); }
+  else showToast('Échec de l\'enregistrement du planning');
+});
+
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   await api('POST', '/api/logout');
   window.location.href = '/login.html';
@@ -862,7 +981,27 @@ function activateTab(name) {
   localStorage.setItem('activeTab', name);
   // La carte a besoin d'un redraw quand son onglet devient visible (canvas de taille nulle avant)
   if (name === 'map') requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  // La console n'est chargée qu'à la demande (fichier potentiellement volumineux), au moment où
+  // l'onglet Activité devient visible plutôt que par un intervalle qui tournerait en permanence.
+  if (name === 'activity' && isManager()) refreshConsole();
 }
+
+async function refreshConsole() {
+  const pre = document.getElementById('consoleLog');
+  if (!pre) return;
+  const data = await api('GET', '/api/console');
+  if (!data || data.error) {
+    pre.textContent =
+      data && data.error === 'not_configured' ? 'Serveur pas encore installé.'
+      : data && data.error === 'log_not_found' ? 'Aucune console disponible — clique "(Ré)installer les services" dans l\'onglet Réglages pour l\'activer sur ce serveur.'
+      : 'Impossible de charger la console.';
+    return;
+  }
+  pre.textContent = data.lines.length ? data.lines.join('\n') : '(console vide pour le moment)';
+  pre.scrollTop = pre.scrollHeight;
+}
+
+document.getElementById('consoleRefreshBtn').addEventListener('click', refreshConsole);
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => activateTab(btn.dataset.tab));
@@ -878,8 +1017,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   refreshUsers();
   refreshBans();
   refreshBackupSchedule();
+  refreshRestartSchedule();
   refreshSetupStatus();
+  refreshDiskSpace();
   setInterval(refreshStatus, 15000);
   setInterval(refreshActivity, 30000);
   setInterval(refreshPlayerHistory, 30000);
+  setInterval(refreshDiskSpace, 5 * 60000);
 })();

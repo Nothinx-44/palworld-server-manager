@@ -120,10 +120,19 @@
         <ul class="backup-list" id="bansList"></ul>
         <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
       </div>
+
+      <div class="panel" data-manager-only>
+        <h2>Console serveur</h2>
+        <div class="btn-row">
+          <button class="action" id="consoleRefreshBtn" type="button">Rafraîchir</button>
+        </div>
+        <pre class="setup-log" id="consoleLog" style="margin-top:10px;">Clique sur "Rafraîchir" pour charger la console.</pre>
+      </div>
     </section>
 
     <!-- ============ SAUVEGARDES ============ -->
     <section class="tab-content" id="tab-backups">
+      <p class="warning" id="diskSpaceWarning" style="display:none;"></p>
       <div class="grid">
         <div class="panel">
           <h2>Sauvegardes</h2>
@@ -188,6 +197,38 @@
           </p>
           <button class="action" id="setupToggleBtn" type="button">Configurer / réinstaller</button>
         </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:22px;">
+        <h2>Redémarrage automatique</h2>
+        <label class="switch-row">
+          <input type="checkbox" id="rsEnabled"> Activer le redémarrage récurrent
+        </label>
+
+        <div class="field-block">
+          <span class="field-label">Jours</span>
+          <div class="days-row" id="rsDays"></div>
+        </div>
+
+        <div class="field-block">
+          <span class="field-label">Heures (plusieurs possibles)</span>
+          <div id="rsTimes" class="times-list"></div>
+          <div class="time-add">
+            <input type="time" id="rsNewTime" value="05:00">
+            <button class="action" id="rsAddTime" type="button">Ajouter</button>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <span class="field-label">Avertissement aux joueurs</span>
+          <input type="number" id="rsWarningMinutes" min="1" max="60" value="5" style="width:70px;">
+          <span class="muted-hint">minutes avant le redémarrage effectif (annonces décroissantes)</span>
+        </div>
+
+        <div class="btn-row" data-manager-only style="margin-top:12px;">
+          <button class="action primary" id="rsSaveBtn" type="button">Enregistrer le planning</button>
+        </div>
+        <p class="empty" id="rsSummary" style="margin-top:10px;"></p>
       </div>
 
       <div class="panel" data-admin-only style="margin-bottom:22px;">

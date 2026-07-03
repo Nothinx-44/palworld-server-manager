@@ -7,6 +7,19 @@ const path = require('path');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'palworld-bksched-'));
 const sched = require('../lib/backupSchedule');
 
+test('BACKUP_CRON exploitable est repris comme défaut', () => {
+  process.env.BACKUP_CRON = '30 3 * * *';
+  assert.deepStrictEqual(sched.defaults().times, ['03:30']);
+  delete process.env.BACKUP_CRON;
+});
+
+test('BACKUP_CRON absent ou inexploitable retombe sur 04:00 tous les jours (activé)', () => {
+  delete process.env.BACKUP_CRON;
+  const d = sched.defaults();
+  assert.strictEqual(d.enabled, true);
+  assert.deepStrictEqual(d.times, ['04:00']);
+});
+
 test('normalize garde les heures valides, trie, dédoublonne', () => {
   const c = sched.normalize({ enabled: true, times: ['16:00', '04:00', '16:00', '99:99'], days: [1, 1, 3], keepCount: 20 });
   assert.deepStrictEqual(c.times, ['04:00', '16:00']);
