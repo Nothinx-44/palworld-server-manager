@@ -271,7 +271,7 @@ app.get('/api/status', requireAuth, async (req, res) => {
   }
 });
 
-// Réglages du monde (lecture seule, tout utilisateur connecté)
+// Réglages du monde (lecture seule via l'API de jeu, tout utilisateur connecté)
 app.get('/api/settings', requireAuth, async (req, res) => {
   try {
     const r = await getPalworldApi().get('/v1/api/settings');
@@ -280,6 +280,49 @@ app.get('/api/settings', requireAuth, async (req, res) => {
   } catch {
     res.status(502).json({ error: 'unreachable' });
   }
+});
+
+// ---------- Édition des réglages du monde (PalWorldSettings.ini, admin uniquement) ----------
+// Indépendant de l'API de jeu : lit/écrit directement le fichier. L'écriture n'est autorisée
+// que serveur éteint — Palworld ne relit le fichier qu'au démarrage, modifier à chaud serait
+// trompeur (et risquerait d'être écrasé).
+app.get('/api/settings/file', requireAuth, requireAdmin, async (req, res) => {
+  const file = serverSetup.getSettingsFilePath();
+  if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'settings_file_not_found' });
+  const settings = serverSetup.parseIniOptions(fs.readFileSync(file, 'utf-8'));
+  if (!settings) return res.status(500).json({ error: 'settings_unreadable' });
+  res.json({ settings, running: await isServiceRunning() });
+});
+
+app.post('/api/settings/file', requireAuth, requireAdmin, async (req, res) => {
+  const changes = (req.body && req.body.changes) || {};
+  const keys = Object.keys(changes);
+  if (!keys.length) return res.status(400).json({ error: 'no_changes' });
+  if (await isServiceRunning()) return res.status(409).json({ error: 'server_running' });
+
+  const file = serverSetup.getSettingsFilePath();
+  if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'settings_file_not_found' });
+  let content = fs.readFileSync(file, 'utf-8');
+  const existing = serverSetup.parseIniOptions(content) || [];
+  const byKey = Object.fromEntries(existing.map(o => [o.key, o]));
+
+  // Uniquement des clés déjà présentes (pas d'injection de clés arbitraires), et pour les
+  // valeurs non-quotées, aucun caractère qui casserait le format OptionSettings=(...).
+  for (const key of keys) {
+    const target = byKey[key];
+    if (!target) return res.status(400).json({ error: 'unknown_key', key });
+    if (!target.quoted && /[,()"\r\n]/.test(String(changes[key]))) {
+      return res.status(400).json({ error: 'invalid_value', key });
+    }
+  }
+
+  keys.forEach(key => {
+    content = serverSetup.setIniOption(content, key, String(changes[key]), { quoted: byKey[key].quoted });
+  });
+  fs.writeFileSync(file, content);
+  activityLog.log(req.session.user.username, 'settings-change', keys.join(', '));
+  discord.notify(`⚙️ Réglages du monde modifiés par **${req.session.user.username}** : ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}`);
+  res.json({ ok: true, changed: keys.length });
 });
 
 // ---------- Démarrage / arrêt (admin uniquement) ----------

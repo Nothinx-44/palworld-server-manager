@@ -18,77 +18,112 @@
       <span class="status-text" id="statusText">Vérification du serveur…</span>
     </div>
 
-    <div class="grid">
-      <div class="panel">
-        <h2>Informations serveur</h2>
-        <ul class="info-grid">
-          <li><span>Statut</span><b id="infoOnline">—</b></li>
-          <li><span>Version</span><b id="infoVersion">—</b></li>
-          <li><span>Joueurs</span><b id="infoPlayers">—</b></li>
-          <li><span>Uptime</span><b id="infoUptime">—</b></li>
-          <li><span>FPS serveur</span><b id="infoFps">—</b></li>
-          <li><span>Jours en jeu</span><b id="infoDays">—</b></li>
-        </ul>
-      </div>
-      <div class="panel">
-        <h2>Réglages du monde</h2>
-        <button class="action" id="loadSettingsBtn" type="button">Afficher les réglages</button>
-        <ul class="info-grid" id="settingsList" style="margin-top:12px;"></ul>
-      </div>
-    </div>
+    <nav class="tabs">
+      <button class="tab-btn" data-tab="dash">Tableau de bord</button>
+      <button class="tab-btn" data-tab="map">Carte</button>
+      <button class="tab-btn" data-tab="activity">Activité</button>
+      <button class="tab-btn" data-tab="backups">Sauvegardes</button>
+      <button class="tab-btn" data-tab="settings" data-admin-only>Réglages</button>
+      <button class="tab-btn" data-tab="accounts">Comptes</button>
+    </nav>
 
-    <div class="panel" data-admin-only style="margin-bottom: 22px;">
-      <h2>Installation du serveur Palworld</h2>
-      <ul class="checklist" id="setupChecklist"></ul>
-      <p class="warning" id="setupElevatedWarning" style="display:none;">
-        ⚠️ Le dashboard ne semble pas tourner avec des droits administrateur : l'installation
-        (service Windows, pare-feu) risque d'échouer. Lance-le en tant que service NSSM
-        (LocalSystem) ou depuis une console PowerShell élevée.
-      </p>
-
-      <button class="action" id="setupToggleBtn" type="button">Configurer / réinstaller</button>
-
-      <form class="account-form" id="setupForm" style="display:none; margin-top:14px;">
-        <input type="text" id="setupInstallDir" placeholder="Dossier d'installation (ex: D:\PalworldServer)">
-        <input type="text" id="setupSteamCmdDir" placeholder="Dossier SteamCMD">
-        <input type="text" id="setupNssmPath" placeholder="Chemin nssm.exe">
-        <input type="text" id="setupServiceName" placeholder="Nom du service Windows">
-        <input type="text" id="setupServerName" placeholder="Nom du serveur">
-        <input type="password" id="setupServerPassword" placeholder="Mot de passe serveur (optionnel)" autocomplete="new-password">
-        <input type="password" id="setupAdminPassword" placeholder="Mot de passe admin (6 caractères min., requis pour l'API REST)" autocomplete="new-password" required minlength="6">
-        <input type="number" id="setupMaxPlayers" placeholder="Joueurs max" min="1">
-        <input type="number" id="setupPort" placeholder="Port de jeu (UDP)">
-        <input type="number" id="setupRestApiPort" placeholder="Port API REST">
-        <input type="text" id="setupBackupDir" placeholder="Dossier de sauvegardes">
-        <button class="action primary" type="submit" id="setupSubmitBtn">Lancer l'installation</button>
-      </form>
-      <p class="error" id="setupError"></p>
-
-      <pre class="setup-log" id="setupLog" style="display:none;"></pre>
-    </div>
-
-    <div class="grid">
-      <div class="panel">
-        <h2>Contrôle du serveur</h2>
-        <div class="btn-row" data-admin-only>
-          <button class="action primary" id="startBtn">Démarrer</button>
-          <button class="action" id="restartBtn">Redémarrer</button>
-          <button class="action" id="saveWorldBtn">Sauvegarder le monde</button>
-          <button class="action danger" id="stopBtn">Arrêter</button>
-          <button class="action danger" id="forceStopBtn">Forcer l'arrêt</button>
+    <!-- ============ TABLEAU DE BORD ============ -->
+    <section class="tab-content" id="tab-dash">
+      <div class="grid">
+        <div class="panel">
+          <h2>Informations serveur</h2>
+          <ul class="info-grid">
+            <li><span>Statut</span><b id="infoOnline">—</b></li>
+            <li><span>Version</span><b id="infoVersion">—</b></li>
+            <li><span>Joueurs</span><b id="infoPlayers">—</b></li>
+            <li><span>Uptime</span><b id="infoUptime">—</b></li>
+            <li><span>FPS serveur</span><b id="infoFps">—</b></li>
+            <li><span>Jours en jeu</span><b id="infoDays">—</b></li>
+          </ul>
         </div>
-        <div class="schedule-row" data-admin-only style="margin-top:14px;">
-          <span>Redémarrage programmé dans</span>
-          <input type="number" id="restartMinutes" value="5" min="1" max="120">
-          <span>min</span>
-          <button class="action" id="scheduleRestartBtn">Programmer</button>
-        </div>
-        <div class="scheduled-banner" id="scheduledBanner" style="display:none;">
-          <span id="scheduledText"></span>
-          <button class="action danger" id="cancelRestartBtn" data-admin-only>Annuler</button>
+
+        <div class="panel">
+          <h2>Contrôle du serveur</h2>
+          <div class="btn-row" data-admin-only>
+            <button class="action primary" id="startBtn">Démarrer</button>
+            <button class="action" id="restartBtn">Redémarrer</button>
+            <button class="action" id="saveWorldBtn">Sauvegarder le monde</button>
+            <button class="action danger" id="stopBtn">Arrêter</button>
+            <button class="action danger" id="forceStopBtn">Forcer l'arrêt</button>
+          </div>
+          <div class="schedule-row" data-admin-only style="margin-top:14px;">
+            <span>Redémarrage programmé dans</span>
+            <input type="number" id="restartMinutes" value="5" min="1" max="120">
+            <span>min</span>
+            <button class="action" id="scheduleRestartBtn">Programmer</button>
+          </div>
+          <div class="scheduled-banner" id="scheduledBanner" style="display:none;">
+            <span id="scheduledText"></span>
+            <button class="action danger" id="cancelRestartBtn" data-admin-only>Annuler</button>
+          </div>
         </div>
       </div>
 
+      <div class="panel" style="margin-bottom: 22px;">
+        <h2>Joueurs connectés</h2>
+        <table id="playersTable">
+          <thead>
+            <tr><th>Nom</th><th>Niveau</th><th>Ping</th><th></th></tr>
+          </thead>
+          <tbody id="playersBody"></tbody>
+        </table>
+        <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
+      </div>
+
+      <div class="panel" data-admin-only>
+        <h2>Annonce</h2>
+        <form class="announce-form" id="announceForm">
+          <input type="text" id="announceInput" placeholder="Message à afficher aux joueurs…" required>
+          <button class="action" type="submit">Envoyer</button>
+        </form>
+        <div class="preset-row" id="presetRow"></div>
+      </div>
+    </section>
+
+    <!-- ============ CARTE ============ -->
+    <section class="tab-content" id="tab-map">
+      <div class="panel map-panel">
+        <h2>Carte en direct</h2>
+        <canvas id="mapCanvas"></canvas>
+        <div class="map-controls">
+          <label><input type="checkbox" id="mapShowTravel" checked> Voyage rapide</label>
+          <label><input type="checkbox" id="mapShowTowers" checked> Tours de boss</label>
+          <span class="map-hint">Molette : zoom — Glisser : déplacer. Ajoute une image de carte dans <code>public/map.png</code> pour remplacer la grille.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ACTIVITÉ ============ -->
+    <section class="tab-content" id="tab-activity">
+      <div class="grid">
+        <div class="panel">
+          <h2>Historique des joueurs</h2>
+          <p class="empty" id="totalsEmpty" style="display:none;">Pas encore de données.</p>
+          <ul class="backup-list" id="totalsList"></ul>
+          <h2 style="margin-top:18px;">Dernières sessions</h2>
+          <ul class="backup-list" id="sessionsList"></ul>
+        </div>
+
+        <div class="panel">
+          <h2>Journal d'activité</h2>
+          <ul class="backup-list" id="activityList"></ul>
+        </div>
+      </div>
+
+      <div class="panel" data-admin-only>
+        <h2>Joueurs bannis</h2>
+        <ul class="backup-list" id="bansList"></ul>
+        <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
+      </div>
+    </section>
+
+    <!-- ============ SAUVEGARDES ============ -->
+    <section class="tab-content" id="tab-backups">
       <div class="panel">
         <h2>Sauvegardes</h2>
         <div class="btn-row" data-admin-only>
@@ -96,99 +131,95 @@
         </div>
         <ul class="backup-list" id="backupList"></ul>
       </div>
+    </section>
 
-      <div class="panel" data-admin-only>
-        <h2>Mise à jour du serveur</h2>
-        <div class="btn-row">
-          <button class="action" id="checkUpdateBtn">Vérifier les mises à jour</button>
-          <button class="action primary" id="applyUpdateBtn" style="display:none;">Appliquer la mise à jour</button>
+    <!-- ============ RÉGLAGES (admin) ============ -->
+    <section class="tab-content" id="tab-settings">
+      <div class="grid">
+        <div class="panel">
+          <h2>Mise à jour du serveur</h2>
+          <div class="btn-row">
+            <button class="action" id="checkUpdateBtn">Vérifier les mises à jour</button>
+            <button class="action primary" id="applyUpdateBtn" style="display:none;">Appliquer la mise à jour</button>
+          </div>
+          <p class="empty" id="updateStatus" style="margin-top:10px;">Compare le build installé au dernier build Steam (via SteamCMD).</p>
         </div>
-        <p class="empty" id="updateStatus" style="margin-top:10px;">Compare le build installé au dernier build Steam (via SteamCMD).</p>
-      </div>
-    </div>
 
-    <div class="panel" style="margin-bottom: 22px;">
-      <h2>Joueurs connectés</h2>
-      <table id="playersTable">
-        <thead>
-          <tr><th>Nom</th><th>Niveau</th><th>Ping</th><th></th></tr>
-        </thead>
-        <tbody id="playersBody"></tbody>
-      </table>
-      <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
-    </div>
-
-    <div class="panel map-panel" style="margin-bottom: 22px;">
-      <h2>Carte en direct</h2>
-      <canvas id="mapCanvas"></canvas>
-      <div class="map-controls">
-        <label><input type="checkbox" id="mapShowTravel" checked> Voyage rapide</label>
-        <label><input type="checkbox" id="mapShowTowers" checked> Tours de boss</label>
-        <span class="map-hint">Molette : zoom — Glisser : déplacer. Ajoute une image de carte dans <code>public/map.png</code> pour remplacer la grille.</span>
-      </div>
-    </div>
-
-    <div class="panel" data-admin-only style="margin-bottom: 22px;">
-      <h2>Joueurs bannis</h2>
-      <ul class="backup-list" id="bansList"></ul>
-      <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
-    </div>
-
-    <div class="panel" data-admin-only>
-      <h2>Annonce</h2>
-      <form class="announce-form" id="announceForm">
-        <input type="text" id="announceInput" placeholder="Message à afficher aux joueurs…" required>
-        <button class="action" type="submit">Envoyer</button>
-      </form>
-      <div class="preset-row" id="presetRow"></div>
-    </div>
-
-    <div class="grid" style="margin-top: 18px;">
-      <div class="panel">
-        <h2>Historique des joueurs</h2>
-        <p class="empty" id="totalsEmpty" style="display:none;">Pas encore de données.</p>
-        <ul class="backup-list" id="totalsList"></ul>
-        <h2 style="margin-top:18px;">Dernières sessions</h2>
-        <ul class="backup-list" id="sessionsList"></ul>
+        <div class="panel">
+          <h2>Installation du serveur</h2>
+          <ul class="checklist" id="setupChecklist"></ul>
+          <p class="warning" id="setupElevatedWarning" style="display:none;">
+            ⚠️ Le dashboard ne semble pas tourner avec des droits administrateur : l'installation
+            (service Windows, pare-feu) risque d'échouer.
+          </p>
+          <button class="action" id="setupToggleBtn" type="button">Configurer / réinstaller</button>
+        </div>
       </div>
 
-      <div class="panel">
-        <h2>Journal d'activité</h2>
-        <ul class="backup-list" id="activityList"></ul>
-      </div>
-    </div>
-
-    <div class="grid" style="margin-top: 18px;">
-      <div class="panel">
-        <h2>Mon compte</h2>
-        <form class="account-form" id="passwordForm">
-          <input type="password" id="currentPassword" placeholder="Mot de passe actuel" autocomplete="current-password" required>
-          <input type="password" id="newPassword" placeholder="Nouveau mot de passe (6 caractères min.)" autocomplete="new-password" required minlength="6">
-          <button class="action primary" type="submit">Changer le mot de passe</button>
+      <div class="panel" style="margin-bottom:22px;">
+        <form class="account-form" id="setupForm" style="display:none;">
+          <input type="text" id="setupInstallDir" placeholder="Dossier d'installation (ex: D:\PalworldServer)">
+          <input type="text" id="setupSteamCmdDir" placeholder="Dossier SteamCMD">
+          <input type="text" id="setupNssmPath" placeholder="Chemin nssm.exe">
+          <input type="text" id="setupServiceName" placeholder="Nom du service Windows">
+          <input type="text" id="setupServerName" placeholder="Nom du serveur">
+          <input type="password" id="setupServerPassword" placeholder="Mot de passe serveur (optionnel)" autocomplete="new-password">
+          <input type="password" id="setupAdminPassword" placeholder="Mot de passe admin (6 caractères min., requis pour l'API REST)" autocomplete="new-password" required minlength="6">
+          <input type="number" id="setupMaxPlayers" placeholder="Joueurs max" min="1">
+          <input type="number" id="setupPort" placeholder="Port de jeu (UDP)">
+          <input type="number" id="setupRestApiPort" placeholder="Port API REST">
+          <input type="text" id="setupBackupDir" placeholder="Dossier de sauvegardes">
+          <button class="action primary" type="submit" id="setupSubmitBtn">Lancer l'installation</button>
         </form>
-        <p class="error" id="passwordError"></p>
+        <p class="error" id="setupError"></p>
+        <pre class="setup-log" id="setupLog" style="display:none;"></pre>
       </div>
 
-      <div class="panel" data-admin-only>
-        <h2>Gestion des utilisateurs</h2>
-        <table>
-          <thead><tr><th>Utilisateur</th><th>Rôle</th><th></th></tr></thead>
-          <tbody id="usersBody"></tbody>
-        </table>
-
-        <h2 style="margin-top:20px;">Créer un compte</h2>
-        <form class="account-form" id="createUserForm">
-          <input type="text" id="newUsername" placeholder="Nom d'utilisateur" required>
-          <input type="password" id="newUserPassword" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
-          <select id="newUserRole">
-            <option value="admin">Admin (accès complet)</option>
-            <option value="viewer">Lecture seule</option>
-          </select>
-          <button class="action primary" type="submit">Créer</button>
-        </form>
-        <p class="error" id="createUserError"></p>
+      <div class="panel">
+        <h2>Réglages du monde (PalWorldSettings.ini)</h2>
+        <div class="btn-row">
+          <button class="action" id="loadSettingsBtn" type="button">Afficher les réglages</button>
+          <button class="action primary" id="saveSettingsBtn" type="button" style="display:none;">Enregistrer les modifications</button>
+        </div>
+        <p class="empty" id="settingsHint" style="margin-top:10px;">Modifiable uniquement serveur éteint (Palworld ne relit ce fichier qu'au démarrage).</p>
+        <div class="settings-grid" id="settingsList" style="display:none;"></div>
       </div>
-    </div>
+    </section>
+
+    <!-- ============ COMPTES ============ -->
+    <section class="tab-content" id="tab-accounts">
+      <div class="grid">
+        <div class="panel">
+          <h2>Mon compte</h2>
+          <form class="account-form" id="passwordForm">
+            <input type="password" id="currentPassword" placeholder="Mot de passe actuel" autocomplete="current-password" required>
+            <input type="password" id="newPassword" placeholder="Nouveau mot de passe (6 caractères min.)" autocomplete="new-password" required minlength="6">
+            <button class="action primary" type="submit">Changer le mot de passe</button>
+          </form>
+          <p class="error" id="passwordError"></p>
+        </div>
+
+        <div class="panel" data-admin-only>
+          <h2>Gestion des utilisateurs</h2>
+          <table>
+            <thead><tr><th>Utilisateur</th><th>Rôle</th><th></th></tr></thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+
+          <h2 style="margin-top:20px;">Créer un compte</h2>
+          <form class="account-form" id="createUserForm">
+            <input type="text" id="newUsername" placeholder="Nom d'utilisateur" required>
+            <input type="password" id="newUserPassword" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
+            <select id="newUserRole">
+              <option value="admin">Admin (accès complet)</option>
+              <option value="viewer">Lecture seule</option>
+            </select>
+            <button class="action primary" type="submit">Créer</button>
+          </form>
+          <p class="error" id="createUserError"></p>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="toast" id="toast"></div>

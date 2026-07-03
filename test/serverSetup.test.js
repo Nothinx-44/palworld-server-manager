@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { setIniOption } = require('../lib/serverSetup');
+const { setIniOption, parseIniOptions } = require('../lib/serverSetup');
 
 const SAMPLE = 'OptionSettings=(Difficulty=None,ServerName="Default Palworld Server",PublicPort=8211,RESTAPIEnabled=False,RESTAPIPort=8212,AdminPassword="")';
 
@@ -36,4 +36,27 @@ test('ajoute la clé si elle est absente', () => {
 test('les guillemets sont retirés de la valeur pour ne pas casser le format', () => {
   const out = setIniOption(SAMPLE, 'ServerName', 'Nom "louche"', { quoted: true });
   assert.ok(out.includes('ServerName="Nom louche"'));
+});
+
+test('parseIniOptions découpe les clés/valeurs en respectant les virgules entre guillemets', () => {
+  const options = parseIniOptions('OptionSettings=(Difficulty=None,ServerName="Chez nous, les copains",ExpRate=1.500000,bEnablePvP=False,AdminPassword="")');
+  const byKey = Object.fromEntries(options.map(o => [o.key, o]));
+  assert.strictEqual(options.length, 5);
+  assert.deepStrictEqual(byKey.ServerName, { key: 'ServerName', value: 'Chez nous, les copains', quoted: true });
+  assert.deepStrictEqual(byKey.Difficulty, { key: 'Difficulty', value: 'None', quoted: false });
+  assert.deepStrictEqual(byKey.AdminPassword, { key: 'AdminPassword', value: '', quoted: true });
+  assert.strictEqual(byKey.bEnablePvP.value, 'False');
+});
+
+test('parseIniOptions renvoie null si OptionSettings est absent', () => {
+  assert.strictEqual(parseIniOptions('[/Script/Pal.PalGameWorldSettings]\n'), null);
+});
+
+test('aller-retour : parseIniOptions puis setIniOption préserve le format', () => {
+  const options = parseIniOptions(SAMPLE);
+  const target = options.find(o => o.key === 'ServerName');
+  const out = setIniOption(SAMPLE, 'ServerName', 'Nouveau nom', { quoted: target.quoted });
+  const reparsed = parseIniOptions(out);
+  assert.strictEqual(reparsed.find(o => o.key === 'ServerName').value, 'Nouveau nom');
+  assert.strictEqual(reparsed.length, options.length);
 });

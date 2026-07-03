@@ -215,6 +215,7 @@ async function refreshActivity() {
     'restart-cancelled': 'a annulé le redémarrage programmé',
     'update-check': 'a vérifié les mises à jour',
     'update-apply': 'a lancé une mise à jour du serveur',
+    'settings-change': 'a modifié les réglages du monde',
     'auto-restart': 'redémarrage automatique (watchdog)',
     'restart-warning': 'annonce de redémarrage planifié',
     'restart-skipped': 'redémarrage planifié ignoré (un autre était en cours)',
@@ -331,22 +332,100 @@ document.getElementById('cancelRestartBtn').addEventListener('click', async () =
   refreshActivity();
 });
 
+// ---------- Éditeur des réglages du monde (PalWorldSettings.ini) ----------
+// Édition directe du fichier, autorisée uniquement serveur éteint. Le bouton alterne
+// affichage/masquage ; seules les valeurs modifiées (surlignées) sont envoyées.
+let settingsOriginal = {}; // clé -> valeur d'origine, pour ne poster que les changements
+let settingsVisible = false;
+
+function renderSettingsEditor(settings, running) {
+  const list = document.getElementById('settingsList');
+  const hint = document.getElementById('settingsHint');
+  list.innerHTML = '';
+  settingsOriginal = {};
+  settings.forEach(({ key, value }) => {
+    settingsOriginal[key] = value;
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    const label = document.createElement('span');
+    label.textContent = key;
+    row.appendChild(label);
+
+    let input;
+    if (value === 'True' || value === 'False') {
+      input = document.createElement('select');
+      ['True', 'False'].forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v === 'True' ? 'Oui' : 'Non';
+        if (v === value) opt.selected = true;
+        input.appendChild(opt);
+      });
+    } else {
+      input = document.createElement('input');
+      input.type = 'text';
+      input.value = value;
+    }
+    input.dataset.key = key;
+    input.disabled = running;
+    input.addEventListener('input', () => {
+      input.classList.toggle('changed', input.value !== settingsOriginal[key]);
+    });
+    input.addEventListener('change', () => {
+      input.classList.toggle('changed', input.value !== settingsOriginal[key]);
+    });
+    row.appendChild(input);
+    list.appendChild(row);
+  });
+  hint.textContent = running
+    ? '🔒 Serveur en cours d\'exécution : arrête-le pour modifier les réglages (Palworld ne relit ce fichier qu\'au démarrage).'
+    : '✏️ Serveur éteint : les réglages sont modifiables. Les champs modifiés sont surlignés.';
+  document.getElementById('saveSettingsBtn').style.display = running ? 'none' : 'inline-block';
+}
+
 document.getElementById('loadSettingsBtn').addEventListener('click', async () => {
   const list = document.getElementById('settingsList');
-  list.innerHTML = '<li><span>Chargement…</span><b></b></li>';
-  const data = await api('GET', '/api/settings');
-  if (!data || data.error) {
-    list.innerHTML = '<li><span>Serveur injoignable</span><b>—</b></li>';
+  const btn = document.getElementById('loadSettingsBtn');
+  if (settingsVisible) { // referme
+    list.style.display = 'none';
+    document.getElementById('saveSettingsBtn').style.display = 'none';
+    btn.textContent = 'Afficher les réglages';
+    settingsVisible = false;
     return;
   }
-  const settings = data.settings || {};
-  list.innerHTML = '';
-  Object.entries(settings).forEach(([key, value]) => {
-    const li = document.createElement('li');
-    const val = typeof value === 'boolean' ? (value ? 'Oui' : 'Non') : String(value);
-    li.innerHTML = `<span>${escapeHtml(key)}</span><b>${escapeHtml(val)}</b>`;
-    list.appendChild(li);
+  btn.disabled = true;
+  const data = await api('GET', '/api/settings/file');
+  btn.disabled = false;
+  if (!data || data.error) {
+    showToast(data && data.error === 'settings_file_not_found'
+      ? 'PalWorldSettings.ini introuvable (serveur pas encore installé ?)'
+      : 'Impossible de lire les réglages');
+    return;
+  }
+  renderSettingsEditor(data.settings || [], data.running);
+  list.style.display = 'grid';
+  btn.textContent = 'Masquer les réglages';
+  settingsVisible = true;
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+  const changes = {};
+  document.querySelectorAll('#settingsList [data-key]').forEach(input => {
+    if (input.value !== settingsOriginal[input.dataset.key]) changes[input.dataset.key] = input.value;
   });
+  if (!Object.keys(changes).length) { showToast('Aucune modification à enregistrer'); return; }
+  if (!confirm(`Enregistrer ${Object.keys(changes).length} réglage(s) modifié(s) ? Ils s'appliqueront au prochain démarrage du serveur.`)) return;
+  const r = await api('POST', '/api/settings/file', { changes });
+  if (r && r.ok) {
+    showToast(`${r.changed} réglage(s) enregistré(s)`);
+    Object.assign(settingsOriginal, changes);
+    document.querySelectorAll('#settingsList .changed').forEach(el => el.classList.remove('changed'));
+    refreshActivity();
+  } else {
+    showToast(r && r.error === 'server_running'
+      ? 'Impossible : le serveur tourne, arrête-le d\'abord'
+      : `Échec de l'enregistrement${r && r.key ? ` (${r.key})` : ''}`);
+  }
 });
 
 // ---------- Mise à jour du serveur ----------
@@ -625,8 +704,25 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   window.location.href = '/login.html';
 });
 
+// ---------- Navigation par onglets ----------
+function activateTab(name) {
+  const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  // Onglet inexistant ou masqué (ex : "Réglages" pour un viewer) : repli sur le tableau de bord
+  if (!btn || btn.style.display === 'none') name = 'dash';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(s => s.classList.toggle('active', s.id === `tab-${name}`));
+  localStorage.setItem('activeTab', name);
+  // La carte a besoin d'un redraw quand son onglet devient visible (canvas de taille nulle avant)
+  if (name === 'map') requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+});
+
 (async function init() {
-  await loadMe();
+  await loadMe(); // masque d'abord les éléments admin-only (le repli d'onglet en dépend)
+  activateTab(localStorage.getItem('activeTab') || 'dash');
   refreshStatus();
   refreshBackups();
   refreshActivity();
