@@ -71,7 +71,10 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static(path.join(__dirname, 'public')));
+// index:false — sinon express.static servirait public/index.html pour la racine "/" AVANT
+// d'atteindre le garde-fou d'auth ci-dessus et le handler app.get('/') plus bas. Avec index:false,
+// GET "/" tombe sur app.get('/') qui redirige vers /login.html si non connecté.
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) return next();
@@ -298,10 +301,22 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Conséquence : après un arrêt volontaire via l'API Palworld (shutdown/stop), NSSM relancerait
 // le serveur ~5 s après la sortie du process. On force donc le service en état STOPPED une fois
 // le process sorti, pour que l'arrêt volontaire tienne (sans perdre la relance anti-crash).
+// Arrêt différé en attente : mémorisé pour pouvoir l'annuler si l'utilisateur redémarre le
+// serveur avant qu'il ne se déclenche (sinon on couperait le serveur qu'il vient de relancer).
+let pendingStopTimer = null;
+
 function confirmServiceStopped(delayMs) {
-  setTimeout(() => {
+  if (pendingStopTimer) clearTimeout(pendingStopTimer);
+  pendingStopTimer = setTimeout(() => {
+    pendingStopTimer = null;
     runNssm(['stop', getServiceName()]).catch(() => {});
   }, delayMs);
+}
+
+// Démarre le service en annulant d'abord tout arrêt différé encore en attente.
+function startService() {
+  if (pendingStopTimer) { clearTimeout(pendingStopTimer); pendingStopTimer = null; }
+  return runNssm(['start', getServiceName()]);
 }
 
 // Programme un redémarrage dans `minutes` minutes, avec des annonces d'avertissement décroissantes
@@ -360,13 +375,13 @@ async function runRestartSequence(stopMessage, waittime = 10) {
     console.error('Vérification SteamCMD échouée:', err.message || err);
     discord.notify(`⚠️ Vérification de mise à jour échouée, redémarrage sans update (${String(err.message || err).slice(0, 150)})`);
   }
-  try { await runNssm(['start', getServiceName()]); } catch (_) {}
+  try { await startService(); } catch (_) {}
 }
 
 app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   try {
-    await runNssm(['start', getServiceName()]);
+    await startService();
     activityLog.log(req.session.user.username, 'start');
     discord.notify(`▶️ Serveur démarré par **${req.session.user.username}**`);
     res.json({ ok: true });
@@ -500,7 +515,11 @@ app.post('/api/force-stop', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ---------- Mise à jour du serveur (admin uniquement) ----------
+let updateCheckInProgress = false;
+
 app.get('/api/update/check', requireAuth, requireAdmin, async (req, res) => {
+  if (updateCheckInProgress) return res.status(409).json({ error: 'check_in_progress' });
+  updateCheckInProgress = true;
   try {
     const result = await steamUpdate.checkForUpdate();
     activityLog.log(req.session.user.username, 'update-check',
@@ -508,6 +527,8 @@ app.get('/api/update/check', requireAuth, requireAdmin, async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: String(err.message || err) });
+  } finally {
+    updateCheckInProgress = false;
   }
 });
 

@@ -359,7 +359,9 @@ document.getElementById('checkUpdateBtn').addEventListener('click', async () => 
   const r = await api('GET', '/api/update/check');
   btn.disabled = false;
   if (!r || r.error) {
-    status.textContent = `Échec de la vérification : ${(r && r.error) || 'erreur inconnue'}`;
+    status.textContent = r && r.error === 'check_in_progress'
+      ? 'Une vérification est déjà en cours…'
+      : `Échec de la vérification : ${(r && r.error) || 'erreur inconnue'}`;
     applyBtn.style.display = 'none';
     return;
   }

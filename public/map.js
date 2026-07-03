@@ -17,6 +17,7 @@
   const mapImage = new Image();
   let mapImageReady = false;
   mapImage.onload = () => { mapImageReady = true; draw(); };
+  mapImage.onerror = () => { mapImageReady = false; }; // pas d'image fournie : on garde la grille
   mapImage.src = '/map.png';
 
   fetch('/map-markers.json')
