@@ -7,6 +7,12 @@ on:
     types: [published]
   workflow_dispatch:
 
+# Le GITHUB_TOKEN par défaut n'a que l'accès lecture depuis fin 2023 (nouveaux dépôts) : sans ce
+# bloc, softprops/action-gh-release échoue avec "Resource not accessible by integration" en
+# tentant d'attacher l'exe à la release (constaté sur les runs v1.0.0/v1.0.1/v1.0.2).
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
