@@ -247,8 +247,13 @@ async function refreshDiskSpace() {
 async function refreshNetworkInfo() {
   const data = await api('GET', '/api/network-info');
   if (!data) return;
-  document.getElementById('localAddr').textContent = `http://${data.localIp}:${data.port}`;
-  document.getElementById('publicAddr').textContent = data.publicIp ? `http://${data.publicIp}:${data.port}` : 'Indisponible (pas de connexion internet ?)';
+  if (!data.port) {
+    document.getElementById('localAddr').textContent = 'Serveur pas encore installé';
+    document.getElementById('publicAddr').textContent = 'Serveur pas encore installé';
+    return;
+  }
+  document.getElementById('localAddr').textContent = `${data.localIp}:${data.port}`;
+  document.getElementById('publicAddr').textContent = data.publicIp ? `${data.publicIp}:${data.port}` : 'Indisponible (pas de connexion internet ?)';
 }
 
 function copyToClipboard(text) {

@@ -789,11 +789,21 @@ app.post('/api/backup/schedule', requireAuth, requireManager, (req, res) => {
 // ---------- Journal d'activité (lecture pour tout le monde) ----------
 // Adresses à partager avec les amis (locale pour le réseau domestique, publique pour internet
 // après redirection de port sur la box).
+// Port du jeu (pas celui du dashboard) : lu en direct dans PalWorldSettings.ini, pour refléter
+// la réalité même si modifié depuis l'installation initiale (via l'onglet Réglages ou à la main).
+function getGamePort() {
+  const file = serverSetup.getSettingsFilePath();
+  if (!file || !fs.existsSync(file)) return null;
+  const options = serverSetup.parseIniOptions(fs.readFileSync(file, 'utf-8'));
+  const entry = options && options.find(o => o.key === 'PublicPort');
+  return entry ? entry.value : null;
+}
+
 app.get('/api/network-info', requireAuth, async (req, res) => {
   res.json({
     localIp: networkInfo.getLocalIp(),
     publicIp: await networkInfo.getPublicIp(),
-    port: PORT
+    port: getGamePort()
   });
 });
 
