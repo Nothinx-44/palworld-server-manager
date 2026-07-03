@@ -23,7 +23,10 @@
 
   // Coordonnées monde (API REST) -> coordonnées carte du jeu
   function worldToMap(wx, wy) {
-    return { x: (wx + TRANSFORM.offsetX) / TRANSFORM.scale, y: (wy + TRANSFORM.offsetY) / TRANSFORM.scale };
+    // Axe X inversé par rapport à la formule communautaire d'origine : constaté en comparant une
+    // position réelle en jeu à la position calculée (signalé le 2026-07-03). À revalider avec le
+    // repère de coordonnées encore affiché sous chaque joueur.
+    return { x: -(wx + TRANSFORM.offsetX) / TRANSFORM.scale, y: (wy + TRANSFORM.offsetY) / TRANSFORM.scale };
   }
 
   // Coordonnées carte -> pixels CSS du canvas (nord en haut : y carte croissant vers le haut)
