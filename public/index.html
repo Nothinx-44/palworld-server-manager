@@ -104,6 +104,43 @@
         </form>
         <div class="preset-row" id="presetRow"></div>
       </div>
+
+      <div class="panel" data-admin-only>
+        <h2>Commandes Admin <span class="muted-hint">(PalDefender)</span></h2>
+        <p class="empty" id="pdCommandsUnavailable" style="display:none;">API PalDefender non configurée — configure-la depuis l'onglet Plugins.</p>
+        <form class="account-form" id="pdCommandForm">
+          <select id="pdCommand">
+            <option value="kick">Kick un joueur</option>
+            <option value="ban">Bannir un joueur</option>
+            <option value="unban">Débannir un joueur</option>
+            <option value="banip">Bannir une IP</option>
+            <option value="unbanip">Débannir une IP</option>
+            <option value="message">Message à un joueur</option>
+            <option value="broadcast">Annonce (Broadcast)</option>
+            <option value="alert">Alerte</option>
+          </select>
+
+          <input type="text" id="pdTarget" list="pdOnlinePlayers" placeholder="Joueur (nom ou UserId) ou IP">
+          <datalist id="pdOnlinePlayers"></datalist>
+
+          <select id="pdSendType" style="display:none;">
+            <option value="PlayerChat">Chat joueur</option>
+            <option value="PlayerGlobalChat">Chat global</option>
+            <option value="PlayerLogNormal">Log normal</option>
+            <option value="PlayerLogImportant">Log important</option>
+            <option value="PlayerLogVeryImportant">Log très important</option>
+          </select>
+
+          <input type="text" id="pdMessage" placeholder="Message" style="display:none;">
+          <input type="text" id="pdReason" placeholder="Raison (optionnel)" style="display:none;">
+          <input type="text" id="pdSender" placeholder="Nom de l'expéditeur (optionnel)" style="display:none;">
+          <label class="switch-row" id="pdIpBanRow" style="display:none;">
+            <input type="checkbox" id="pdBanIp"> Bannir aussi l'IP de ce joueur
+          </label>
+
+          <button class="action primary" type="submit">Exécuter</button>
+        </form>
+      </div>
     </section>
 
     <!-- ============ CARTE ============ -->
@@ -302,6 +339,13 @@
             <button class="action danger" id="paldefenderUninstallBtn" type="button" style="display:none;">Désinstaller</button>
           </div>
           <p class="muted-hint" style="display:block; margin-top:10px;">⚠️ Binaire fermé (code non public) fourni par ses auteurs — installé directement depuis leur release GitHub officielle, jamais modifié par ce dashboard.</p>
+
+          <div class="field-block" data-admin-only>
+            <span class="field-label">API de commandes (pour l'onglet Tableau de bord)</span>
+            <p class="empty" id="paldefenderApiStatus" style="margin:0 0 8px;">—</p>
+            <button class="action" id="paldefenderConfigureBtn" type="button">Configurer l'API</button>
+            <p class="muted-hint" style="display:block; margin-top:8px;">Nécessite d'avoir démarré le serveur au moins une fois avec PalDefender installé. Un redémarrage du serveur est requis après configuration.</p>
+          </div>
         </div>
       </div>
       <p class="muted-hint">Installation/désinstallation possibles uniquement serveur éteint (les fichiers sont chargés par le processus en cours d'exécution).</p>

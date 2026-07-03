@@ -27,6 +27,7 @@ const diskSpace = require('./lib/diskSpace');
 const backupRestore = require('./lib/backupRestore');
 const networkInfo = require('./lib/networkInfo');
 const plugins = require('./lib/plugins');
+const paldefenderApi = require('./lib/paldefenderApi');
 const logTail = require('./lib/logTail');
 
 // ---------- Config ----------
@@ -849,6 +850,37 @@ app.post('/api/plugins/:name/uninstall', requireAuth, requireManager, async (req
   plugins.uninstall(name);
   activityLog.log(req.session.user.username, 'plugin-uninstall', plugins.PLUGINS[name].label);
   res.json({ ok: true });
+});
+
+// ---------- Commandes admin PalDefender (admin uniquement — pas les comptes "user") ----------
+app.get('/api/paldefender/status', requireAuth, requireAdmin, (req, res) => {
+  res.json(plugins.getPalDefenderApiStatus());
+});
+
+app.post('/api/paldefender/configure', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const result = plugins.configurePalDefenderApi();
+    activityLog.log(req.session.user.username, 'paldefender-api-configure');
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(400).json({ error: String(err.message || err) });
+  }
+});
+
+app.post('/api/paldefender/command', requireAuth, requireAdmin, async (req, res) => {
+  const { command, target, fields } = req.body || {};
+  const cmd = paldefenderApi.COMMANDS[command];
+  if (!cmd) return res.status(400).json({ error: 'unknown_command' });
+  if ((cmd.needsPlayer || cmd.needsIp) && !target) return res.status(400).json({ error: 'target_required' });
+  try {
+    const result = await cmd.run(target, fields || {});
+    activityLog.log(req.session.user.username, 'paldefender-command', `${cmd.label}${target ? ' — ' + target : ''}`);
+    res.json({ ok: true, result });
+  } catch (err) {
+    const message = String(err.message || err);
+    if (message === 'paldefender_not_configured') return res.status(409).json({ error: 'not_configured' });
+    res.status(500).json({ error: message });
+  }
 });
 
 // ---------- Historique des joueurs (lecture pour tout le monde) ----------

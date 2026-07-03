@@ -12,6 +12,7 @@ const toast = document.getElementById('toast');
 
 let currentRole = 'viewer';
 let currentUsername = '';
+let onlinePlayers = [];
 
 // admin : tout. user : actions + gestion des comptes non-admin, sans installation. viewer : lecture.
 function isAdmin() { return currentRole === 'admin'; }
@@ -109,6 +110,11 @@ function renderScheduledBanner(at) {
 }
 
 function renderPlayers(players) {
+  onlinePlayers = players || [];
+  const datalist = document.getElementById('pdOnlinePlayers');
+  if (datalist) {
+    datalist.innerHTML = onlinePlayers.map(p => `<option value="${escapeHtml(p.name || '')}">${escapeHtml(p.userId || '')}</option>`).join('');
+  }
   playersBody.innerHTML = '';
   if (!players.length) {
     playersEmpty.style.display = 'block';
@@ -303,6 +309,76 @@ document.getElementById('ue4ssUninstallBtn').addEventListener('click', () => uni
 document.getElementById('paldefenderInstallBtn').addEventListener('click', () => installPlugin('paldefender', 'PalDefender'));
 document.getElementById('paldefenderUninstallBtn').addEventListener('click', () => uninstallPlugin('paldefender', 'PalDefender'));
 
+// ---------- API de commandes PalDefender ----------
+let pdApiConfigured = false;
+
+async function refreshPaldefenderApiStatus() {
+  if (!isAdmin()) return;
+  const data = await api('GET', '/api/paldefender/status');
+  if (!data) return;
+  pdApiConfigured = data.tokenConfigured;
+  const statusEl = document.getElementById('paldefenderApiStatus');
+  statusEl.textContent = data.tokenConfigured
+    ? '✅ Configurée'
+    : data.configFileExists
+      ? '⭕ Pas encore configurée'
+      : '⭕ Démarre le serveur au moins une fois avec PalDefender installé pour pouvoir la configurer';
+  const unavailable = document.getElementById('pdCommandsUnavailable');
+  const form = document.getElementById('pdCommandForm');
+  if (unavailable) unavailable.style.display = pdApiConfigured ? 'none' : 'block';
+  if (form) form.style.display = pdApiConfigured ? 'flex' : 'none';
+}
+
+document.getElementById('paldefenderConfigureBtn').addEventListener('click', async () => {
+  const r = await api('POST', '/api/paldefender/configure', {});
+  if (r && r.ok) showToast('API configurée — redémarre le serveur pour l\'activer');
+  else showToast((r && r.error) || 'Échec de la configuration');
+  refreshPaldefenderApiStatus();
+});
+
+// Affiche/masque les champs pertinents selon la commande sélectionnée.
+function updatePdFieldsVisibility() {
+  const cmd = document.getElementById('pdCommand').value;
+  const show = (id, cond) => { document.getElementById(id).style.display = cond ? '' : 'none'; };
+  const needsPlayerOrIp = ['kick', 'ban', 'unban', 'banip', 'unbanip', 'message'].includes(cmd);
+  show('pdTarget', needsPlayerOrIp);
+  show('pdSendType', cmd === 'message');
+  show('pdMessage', ['message', 'broadcast', 'alert'].includes(cmd));
+  show('pdReason', ['kick', 'ban', 'unban', 'banip', 'unbanip'].includes(cmd));
+  show('pdSender', cmd === 'broadcast');
+  show('pdIpBanRow', cmd === 'ban');
+}
+document.getElementById('pdCommand').addEventListener('change', updatePdFieldsVisibility);
+updatePdFieldsVisibility();
+
+document.getElementById('pdCommandForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const command = document.getElementById('pdCommand').value;
+  const targetInput = document.getElementById('pdTarget').value.trim();
+  // Autorise de saisir un pseudo (résolu vers son UserId via les joueurs connectés) ou un
+  // UserId/IP directement.
+  const matched = onlinePlayers.find(p => p.name === targetInput);
+  const target = matched ? matched.userId : targetInput;
+
+  const fields = {
+    Reason: document.getElementById('pdReason').value.trim(),
+    Message: document.getElementById('pdMessage').value.trim(),
+    Sender: document.getElementById('pdSender').value.trim(),
+    SendType: document.getElementById('pdSendType').value,
+    IP: document.getElementById('pdBanIp').checked
+  };
+
+  const r = await api('POST', '/api/paldefender/command', { command, target, fields });
+  if (r && r.ok) {
+    showToast('Commande exécutée');
+    e.target.reset();
+    updatePdFieldsVisibility();
+    refreshActivity();
+  } else {
+    showToast(r && r.error === 'not_configured' ? 'API PalDefender non configurée' : `Échec : ${(r && r.error) || 'erreur inconnue'}`);
+  }
+});
+
 async function refreshActivity() {
   const data = await api('GET', '/api/activity');
   if (!data) return;
@@ -334,6 +410,8 @@ async function refreshActivity() {
     'backup-restore-error': 'a échoué à restaurer une sauvegarde',
     'plugin-install': 'a installé un plugin',
     'plugin-uninstall': 'a désinstallé un plugin',
+    'paldefender-api-configure': 'a configuré l\'API PalDefender',
+    'paldefender-command': 'a exécuté une commande PalDefender',
     'disk-space-low': 'alerte espace disque faible',
     'auto-restart': 'redémarrage automatique (watchdog)',
     'restart-warning': 'annonce de redémarrage planifié',
@@ -1111,7 +1189,7 @@ function activateTab(name) {
   // La console n'est chargée qu'à la demande (fichier potentiellement volumineux), au moment où
   // l'onglet Activité devient visible plutôt que par un intervalle qui tournerait en permanence.
   if (name === 'activity' && isManager()) refreshConsole();
-  if (name === 'plugins') refreshPlugins();
+  if (name === 'plugins') { refreshPlugins(); refreshPaldefenderApiStatus(); }
 }
 
 async function refreshConsole() {
@@ -1149,6 +1227,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   refreshSetupStatus();
   refreshDiskSpace();
   refreshNetworkInfo();
+  refreshPaldefenderApiStatus();
   setInterval(refreshStatus, 15000);
   setInterval(refreshActivity, 30000);
   setInterval(refreshPlayerHistory, 30000);
