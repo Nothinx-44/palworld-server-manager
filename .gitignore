@@ -3,4 +3,5 @@ node_modules/
 data/
 dist/
 runtime/
-build/
+build/*
+!build/logo-source.png

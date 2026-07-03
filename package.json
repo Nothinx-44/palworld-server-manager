@@ -11,7 +11,7 @@
     "test": "node --test",
     "electron:dev": "electron .",
     "fetch-node": "node scripts/fetch-node.js",
-    "icon": "node scripts/generate-icon.js",
+    "icon": "node scripts/build-icon.js",
     "dist": "npm run icon && npm run fetch-node && electron-builder --win nsis"
   },
   "dependencies": {
