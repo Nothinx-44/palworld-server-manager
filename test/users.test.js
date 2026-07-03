@@ -21,6 +21,14 @@ test('le rôle par défaut est admin, viewer si demandé', () => {
   assert.strictEqual(users.findUser('copain').role, 'viewer');
 });
 
+test('le rôle "user" est accepté ; un rôle inconnu retombe sur admin', () => {
+  users.upsertUser('manager', 'mot-de-passe-x', 'user');
+  assert.strictEqual(users.findUser('manager').role, 'user');
+  assert.strictEqual(users.normalizeRole('user'), 'user');
+  assert.strictEqual(users.normalizeRole('n_importe_quoi'), 'admin');
+  users.deleteUser('manager');
+});
+
 test('listUsers ne divulgue pas les hash de mots de passe', () => {
   const list = users.listUsers();
   assert.ok(list.length >= 2);

@@ -23,7 +23,7 @@
       <button class="tab-btn" data-tab="map">Carte</button>
       <button class="tab-btn" data-tab="activity">Activité</button>
       <button class="tab-btn" data-tab="backups">Sauvegardes</button>
-      <button class="tab-btn" data-tab="settings" data-admin-only>Réglages</button>
+      <button class="tab-btn" data-tab="settings" data-manager-only>Réglages</button>
       <button class="tab-btn" data-tab="accounts">Comptes</button>
     </nav>
 
@@ -44,14 +44,14 @@
 
         <div class="panel">
           <h2>Contrôle du serveur</h2>
-          <div class="btn-row" data-admin-only>
+          <div class="btn-row" data-manager-only>
             <button class="action primary" id="startBtn">Démarrer</button>
             <button class="action" id="restartBtn">Redémarrer</button>
             <button class="action" id="saveWorldBtn">Sauvegarder le monde</button>
             <button class="action danger" id="stopBtn">Arrêter</button>
             <button class="action danger" id="forceStopBtn">Forcer l'arrêt</button>
           </div>
-          <div class="schedule-row" data-admin-only style="margin-top:14px;">
+          <div class="schedule-row" data-manager-only style="margin-top:14px;">
             <span>Redémarrage programmé dans</span>
             <input type="number" id="restartMinutes" value="5" min="1" max="120">
             <span>min</span>
@@ -59,7 +59,7 @@
           </div>
           <div class="scheduled-banner" id="scheduledBanner" style="display:none;">
             <span id="scheduledText"></span>
-            <button class="action danger" id="cancelRestartBtn" data-admin-only>Annuler</button>
+            <button class="action danger" id="cancelRestartBtn" data-manager-only>Annuler</button>
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@
         <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
       </div>
 
-      <div class="panel" data-admin-only>
+      <div class="panel" data-manager-only>
         <h2>Annonce</h2>
         <form class="announce-form" id="announceForm">
           <input type="text" id="announceInput" placeholder="Message à afficher aux joueurs…" required>
@@ -115,7 +115,7 @@
         </div>
       </div>
 
-      <div class="panel" data-admin-only>
+      <div class="panel" data-manager-only>
         <h2>Joueurs bannis</h2>
         <ul class="backup-list" id="bansList"></ul>
         <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
@@ -124,12 +124,46 @@
 
     <!-- ============ SAUVEGARDES ============ -->
     <section class="tab-content" id="tab-backups">
-      <div class="panel">
-        <h2>Sauvegardes</h2>
-        <div class="btn-row" data-admin-only>
-          <button class="action primary" id="backupBtn">Sauvegarder maintenant</button>
+      <div class="grid">
+        <div class="panel">
+          <h2>Sauvegardes</h2>
+          <div class="btn-row" data-manager-only>
+            <button class="action primary" id="backupBtn">Sauvegarder maintenant</button>
+          </div>
+          <ul class="backup-list" id="backupList"></ul>
         </div>
-        <ul class="backup-list" id="backupList"></ul>
+
+        <div class="panel">
+          <h2>Sauvegardes automatiques</h2>
+          <label class="switch-row">
+            <input type="checkbox" id="bkEnabled"> Activer les sauvegardes planifiées
+          </label>
+
+          <div class="field-block">
+            <span class="field-label">Jours</span>
+            <div class="days-row" id="bkDays"></div>
+          </div>
+
+          <div class="field-block">
+            <span class="field-label">Heures (plusieurs possibles)</span>
+            <div id="bkTimes" class="times-list"></div>
+            <div class="time-add">
+              <input type="time" id="bkNewTime" value="04:00">
+              <button class="action" id="bkAddTime" type="button">Ajouter</button>
+            </div>
+          </div>
+
+          <div class="field-block">
+            <span class="field-label">Sauvegardes conservées</span>
+            <input type="number" id="bkKeepCount" min="1" max="1000" value="14" style="width:90px;">
+            <span class="muted-hint">les plus anciennes au-delà sont supprimées</span>
+          </div>
+
+          <div class="btn-row" data-manager-only style="margin-top:12px;">
+            <button class="action primary" id="bkSaveBtn" type="button">Enregistrer le planning</button>
+          </div>
+          <p class="empty" id="bkSummary" style="margin-top:10px;"></p>
+        </div>
       </div>
     </section>
 
@@ -145,7 +179,7 @@
           <p class="empty" id="updateStatus" style="margin-top:10px;">Compare le build installé au dernier build Steam (via SteamCMD).</p>
         </div>
 
-        <div class="panel">
+        <div class="panel" data-admin-only>
           <h2>Installation du serveur</h2>
           <ul class="checklist" id="setupChecklist"></ul>
           <p class="warning" id="setupElevatedWarning" style="display:none;">
@@ -156,7 +190,7 @@
         </div>
       </div>
 
-      <div class="panel" style="margin-bottom:22px;">
+      <div class="panel" data-admin-only style="margin-bottom:22px;">
         <form class="account-form" id="setupForm" style="display:none;">
           <input type="text" id="setupInstallDir" placeholder="Dossier d'installation (ex: D:\PalworldServer)">
           <input type="text" id="setupSteamCmdDir" placeholder="Dossier SteamCMD">
@@ -179,6 +213,7 @@
         <h2>Réglages du monde (PalWorldSettings.ini)</h2>
         <div class="btn-row">
           <button class="action" id="loadSettingsBtn" type="button">Afficher les réglages</button>
+          <button class="action danger" id="stopToEditBtn" type="button" style="display:none;">Forcer l'arrêt pour modifier</button>
           <button class="action primary" id="saveSettingsBtn" type="button" style="display:none;">Enregistrer les modifications</button>
         </div>
         <p class="empty" id="settingsHint" style="margin-top:10px;">Modifiable uniquement serveur éteint (Palworld ne relit ce fichier qu'au démarrage).</p>
@@ -199,7 +234,7 @@
           <p class="error" id="passwordError"></p>
         </div>
 
-        <div class="panel" data-admin-only>
+        <div class="panel" data-manager-only>
           <h2>Gestion des utilisateurs</h2>
           <table>
             <thead><tr><th>Utilisateur</th><th>Rôle</th><th></th></tr></thead>
@@ -211,7 +246,8 @@
             <input type="text" id="newUsername" placeholder="Nom d'utilisateur" required>
             <input type="password" id="newUserPassword" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
             <select id="newUserRole">
-              <option value="admin">Admin (accès complet)</option>
+              <option value="admin" data-role-admin>Admin (accès complet)</option>
+              <option value="user">Utilisateur (actions, sans installation ni comptes admin)</option>
               <option value="viewer">Lecture seule</option>
             </select>
             <button class="action primary" type="submit">Créer</button>

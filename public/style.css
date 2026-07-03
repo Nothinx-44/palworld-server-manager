@@ -335,6 +335,37 @@ select.role-select {
 .settings-row input.changed, .settings-row select.changed { border-color: var(--accent); }
 .settings-row input:disabled, .settings-row select:disabled { opacity: 0.5; }
 
+/* ---------- Planificateur de sauvegardes ---------- */
+.switch-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; margin-bottom: 4px; }
+.field-block { margin-top: 16px; }
+.field-label { display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+.days-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.day-btn {
+  background: var(--panel-alt); border: 1px solid var(--line); color: var(--muted);
+  border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; cursor: pointer; min-width: 40px;
+}
+.day-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.times-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.time-chip {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--panel-alt);
+  border: 1px solid var(--line); border-radius: 20px; padding: 4px 6px 4px 12px; font-size: 0.82rem;
+  font-family: var(--font-mono);
+}
+.time-chip button { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 4px; }
+.time-add { display: flex; gap: 6px; }
+.time-add input { background: var(--panel-alt); border: 1px solid var(--line); color: var(--text); padding: 6px 8px; border-radius: 6px; }
+#bkKeepCount { background: var(--panel-alt); border: 1px solid var(--line); color: var(--text); padding: 6px 8px; border-radius: 6px; }
+.muted-hint { color: var(--muted); font-size: 0.78rem; margin-left: 8px; }
+
+/* Champ mot de passe dans l'éditeur de réglages : bouton œil pour révéler */
+.pw-wrap { position: relative; display: inline-flex; }
+.pw-wrap input { padding-right: 26px; }
+.pw-reveal {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 0.85rem; opacity: 0.6; padding: 0 2px;
+}
+.pw-reveal:hover { opacity: 1; }
+
 /* ---------- Server operations ---------- */
 .info-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 0.85rem; }
 .info-grid li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); }

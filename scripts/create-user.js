@@ -1,4 +1,4 @@
-// Usage : node scripts/create-user.js <username> <password> [admin|viewer]
+// Usage : node scripts/create-user.js <username> <password> [admin|user|viewer]
 // Utile pour créer le tout premier compte admin, ou récupérer l'accès si tu es bloqué dehors.
 // Une fois connecté, la gestion des comptes se fait normalement depuis le dashboard.
 require('dotenv').config({ path: require('../lib/paths').ENV_FILE });
@@ -6,11 +6,11 @@ const users = require('../lib/users');
 
 const [, , username, password, roleArg] = process.argv;
 if (!username || !password) {
-  console.log('Usage : node scripts/create-user.js <username> <password> [admin|viewer]');
+  console.log('Usage : node scripts/create-user.js <username> <password> [admin|user|viewer]');
   process.exit(1);
 }
 
-const role = roleArg === 'viewer' ? 'viewer' : 'admin';
+const role = users.normalizeRole(roleArg);
 const existed = !!users.findUser(username);
 users.upsertUser(username, password, role);
 console.log(existed

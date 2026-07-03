@@ -13,6 +13,10 @@ const toast = document.getElementById('toast');
 let currentRole = 'viewer';
 let currentUsername = '';
 
+// admin : tout. user : actions + gestion des comptes non-admin, sans installation. viewer : lecture.
+function isAdmin() { return currentRole === 'admin'; }
+function isManager() { return currentRole === 'admin' || currentRole === 'user'; }
+
 function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
@@ -37,10 +41,13 @@ async function loadMe() {
   if (!data || !data.user) return;
   currentRole = data.user.role;
   currentUsername = data.user.username;
-  roleBadge.textContent = currentRole === 'admin' ? 'Admin' : 'Lecture seule';
-  if (currentRole !== 'admin') {
-    document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display = 'none');
-  }
+  const labels = { admin: 'Admin', user: 'Utilisateur', viewer: 'Lecture seule' };
+  roleBadge.textContent = labels[currentRole] || currentRole;
+  // data-admin-only : admin seul (installation, comptes admin). data-manager-only : admin + user.
+  if (!isAdmin()) document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display = 'none');
+  if (!isManager()) document.querySelectorAll('[data-manager-only]').forEach(el => el.style.display = 'none');
+  // Un "user" ne peut pas créer de compte admin : on retire l'option correspondante.
+  if (!isAdmin()) document.querySelectorAll('#newUserRole [data-role-admin]').forEach(o => o.remove());
 }
 
 async function refreshStatus() {
@@ -110,7 +117,7 @@ function renderPlayers(players) {
   playersEmpty.style.display = 'none';
   players.forEach(p => {
     const tr = document.createElement('tr');
-    const actions = currentRole === 'admin'
+    const actions = isManager()
       ? `<div class="row-actions">
            <button class="kick-btn" data-userid="${escapeHtml(p.userId || '')}">Kick</button>
            <button class="ban-btn" data-userid="${escapeHtml(p.userId || '')}" data-name="${escapeHtml(p.name || '')}">Bannir</button>
@@ -143,7 +150,7 @@ function renderPlayers(players) {
 }
 
 async function refreshBans() {
-  if (currentRole !== 'admin') return;
+  if (!isManager()) return;
   const data = await api('GET', '/api/bans');
   if (!data) return;
   const list = document.getElementById('bansList');
@@ -216,6 +223,7 @@ async function refreshActivity() {
     'update-check': 'a vérifié les mises à jour',
     'update-apply': 'a lancé une mise à jour du serveur',
     'settings-change': 'a modifié les réglages du monde',
+    'backup-schedule-change': 'a modifié le planning des sauvegardes',
     'auto-restart': 'redémarrage automatique (watchdog)',
     'restart-warning': 'annonce de redémarrage planifié',
     'restart-skipped': 'redémarrage planifié ignoré (un autre était en cours)',
@@ -351,6 +359,7 @@ function renderSettingsEditor(settings, running) {
     label.textContent = key;
     row.appendChild(label);
 
+    const isPassword = /password/i.test(key);
     let input;
     if (value === 'True' || value === 'False') {
       input = document.createElement('select');
@@ -363,25 +372,59 @@ function renderSettingsEditor(settings, running) {
       });
     } else {
       input = document.createElement('input');
-      input.type = 'text';
+      input.type = isPassword ? 'password' : 'text';
       input.value = value;
     }
     input.dataset.key = key;
     input.disabled = running;
-    input.addEventListener('input', () => {
-      input.classList.toggle('changed', input.value !== settingsOriginal[key]);
-    });
-    input.addEventListener('change', () => {
-      input.classList.toggle('changed', input.value !== settingsOriginal[key]);
-    });
-    row.appendChild(input);
+    const markChanged = () => input.classList.toggle('changed', input.value !== settingsOriginal[key]);
+    input.addEventListener('input', markChanged);
+    input.addEventListener('change', markChanged);
+
+    if (isPassword && input.tagName === 'INPUT') {
+      // Mot de passe masqué par défaut, avec un bouton œil pour révéler
+      const wrap = document.createElement('div');
+      wrap.className = 'pw-wrap';
+      const eye = document.createElement('button');
+      eye.type = 'button';
+      eye.className = 'pw-reveal';
+      eye.textContent = '👁';
+      eye.title = 'Afficher / masquer';
+      eye.addEventListener('click', () => { input.type = input.type === 'password' ? 'text' : 'password'; });
+      wrap.appendChild(input);
+      wrap.appendChild(eye);
+      row.appendChild(wrap);
+    } else {
+      row.appendChild(input);
+    }
     list.appendChild(row);
   });
   hint.textContent = running
     ? '🔒 Serveur en cours d\'exécution : arrête-le pour modifier les réglages (Palworld ne relit ce fichier qu\'au démarrage).'
     : '✏️ Serveur éteint : les réglages sont modifiables. Les champs modifiés sont surlignés.';
   document.getElementById('saveSettingsBtn').style.display = running ? 'none' : 'inline-block';
+  document.getElementById('stopToEditBtn').style.display = (running && isManager()) ? 'inline-block' : 'none';
 }
+
+document.getElementById('stopToEditBtn').addEventListener('click', async () => {
+  if (!confirm('Forcer l\'arrêt du serveur pour pouvoir modifier les réglages ? Les joueurs connectés seront déconnectés.')) return;
+  const btn = document.getElementById('stopToEditBtn');
+  btn.disabled = true;
+  const r = await api('POST', '/api/force-stop');
+  if (!r || !r.ok) { btn.disabled = false; showToast(actionError(r, 'Échec de l\'arrêt')); return; }
+  showToast('Serveur arrêté — chargement des réglages modifiables…');
+  setTimeout(async () => {
+    btn.disabled = false;
+    const data = await api('GET', '/api/settings/file');
+    if (data && !data.error) {
+      renderSettingsEditor(data.settings || [], data.running);
+      document.getElementById('settingsList').style.display = 'grid';
+      document.getElementById('loadSettingsBtn').textContent = 'Masquer les réglages';
+      settingsVisible = true;
+    }
+    refreshStatus();
+  }, 4000);
+});
 
 document.getElementById('loadSettingsBtn').addEventListener('click', async () => {
   const list = document.getElementById('settingsList');
@@ -422,8 +465,9 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
     document.querySelectorAll('#settingsList .changed').forEach(el => el.classList.remove('changed'));
     refreshActivity();
   } else {
-    showToast(r && r.error === 'server_running'
-      ? 'Impossible : le serveur tourne, arrête-le d\'abord'
+    showToast(
+      r && r.error === 'server_running' ? 'Impossible : le serveur tourne, arrête-le d\'abord'
+      : r && r.error === 'integrity_check_failed' ? 'Refusé : la modification aurait corrompu le fichier'
       : `Échec de l'enregistrement${r && r.key ? ` (${r.key})` : ''}`);
   }
 });
@@ -504,25 +548,30 @@ document.getElementById('announceForm').addEventListener('submit', async (e) => 
 });
 
 async function refreshUsers() {
-  if (currentRole !== 'admin') return;
+  if (!isManager()) return;
   const data = await api('GET', '/api/users');
   if (!data) return;
+  const canManageAdmins = !!data.canManageAdmins; // vrai seulement pour un admin
   const usersBody = document.getElementById('usersBody');
   usersBody.innerHTML = '';
   data.users.forEach(u => {
     const tr = document.createElement('tr');
     const isSelf = u.username === currentUsername;
+    // Un "user" ne peut pas toucher aux comptes admin (ni les modifier, ni les supprimer).
+    const locked = isSelf || (u.role === 'admin' && !canManageAdmins);
+    const adminOpt = canManageAdmins ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>` : '';
     tr.innerHTML = `
       <td>${escapeHtml(u.username)}${isSelf ? ' <span class="role-badge">toi</span>' : ''}</td>
       <td>
-        <select class="role-select" data-username="${escapeHtml(u.username)}" ${isSelf ? 'disabled' : ''}>
-          <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+        <select class="role-select" data-username="${escapeHtml(u.username)}" ${locked ? 'disabled' : ''}>
+          ${adminOpt}
+          <option value="user" ${u.role === 'user' ? 'selected' : ''}>Utilisateur</option>
           <option value="viewer" ${u.role === 'viewer' ? 'selected' : ''}>Lecture seule</option>
         </select>
       </td>
       <td class="row-actions">
-        <button class="icon-btn" data-reset="${escapeHtml(u.username)}">Réinitialiser mdp</button>
-        <button class="icon-btn danger" data-delete="${escapeHtml(u.username)}" ${isSelf ? 'disabled' : ''}>Supprimer</button>
+        <button class="icon-btn" data-reset="${escapeHtml(u.username)}" ${locked && !isSelf ? 'disabled' : ''}>Réinitialiser mdp</button>
+        <button class="icon-btn danger" data-delete="${escapeHtml(u.username)}" ${locked ? 'disabled' : ''}>Supprimer</button>
       </td>
     `;
     usersBody.appendChild(tr);
@@ -533,7 +582,9 @@ async function refreshUsers() {
       const r = await api('PUT', `/api/users/${encodeURIComponent(sel.dataset.username)}`, { role: sel.value });
       if (r && r.ok) showToast('Rôle mis à jour');
       else {
-        showToast(r && r.error === 'last_admin' ? 'Impossible : il doit rester au moins un admin' : 'Échec de la mise à jour');
+        showToast(r && r.error === 'last_admin' ? 'Impossible : il doit rester au moins un admin'
+          : r && r.error === 'admin_required' ? 'Réservé aux admins'
+          : 'Échec de la mise à jour');
         refreshUsers();
       }
     });
@@ -572,7 +623,11 @@ document.getElementById('createUserForm').addEventListener('submit', async (e) =
     e.target.reset();
     refreshUsers();
   } else {
-    errorEl.textContent = r && r.error === 'already_exists' ? 'Ce nom d\'utilisateur existe déjà.' : 'Échec de la création du compte.';
+    errorEl.textContent =
+      r && r.error === 'already_exists' ? 'Ce nom d\'utilisateur existe déjà.'
+      : r && r.error === 'admin_required' ? 'Seul un admin peut créer un compte admin.'
+      : r && r.error === 'password_too_short' ? 'Mot de passe : 6 caractères minimum.'
+      : 'Échec de la création du compte.';
   }
 });
 
@@ -699,6 +754,88 @@ setupForm.addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- Planificateur de sauvegardes automatiques ----------
+const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+let bkTimes = []; // heures "HH:MM" en cours d'édition
+let bkDays = [];  // jours 0..6 sélectionnés
+
+function renderBkDays() {
+  const row = document.getElementById('bkDays');
+  row.innerHTML = '';
+  DAY_LABELS.forEach((label, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'day-btn' + (bkDays.includes(i) ? ' on' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      if (bkDays.includes(i)) bkDays = bkDays.filter(d => d !== i);
+      else bkDays.push(i);
+      renderBkDays();
+    });
+    row.appendChild(btn);
+  });
+}
+
+function renderBkTimes() {
+  const list = document.getElementById('bkTimes');
+  list.innerHTML = '';
+  bkTimes.slice().sort().forEach(t => {
+    const chip = document.createElement('span');
+    chip.className = 'time-chip';
+    chip.textContent = t;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '×';
+    x.title = 'Retirer';
+    x.addEventListener('click', () => { bkTimes = bkTimes.filter(v => v !== t); renderBkTimes(); });
+    chip.appendChild(x);
+    list.appendChild(chip);
+  });
+  if (!bkTimes.length) list.innerHTML = '<span class="muted-hint">Aucune heure — ajoutes-en une.</span>';
+}
+
+function summarizeBk(schedule) {
+  const el = document.getElementById('bkSummary');
+  if (!schedule.enabled) { el.textContent = '⏸️ Sauvegardes planifiées désactivées.'; return; }
+  const days = schedule.days.length >= 7 ? 'tous les jours' : schedule.days.map(d => DAY_LABELS[d]).join(', ');
+  el.textContent = `✅ ${schedule.times.join(', ')} — ${days} — ${schedule.keepCount} sauvegardes conservées.`;
+}
+
+async function refreshBackupSchedule() {
+  const data = await api('GET', '/api/backup/schedule');
+  if (!data || !data.schedule) return;
+  const s = data.schedule;
+  document.getElementById('bkEnabled').checked = s.enabled;
+  document.getElementById('bkKeepCount').value = s.keepCount;
+  bkTimes = [...s.times];
+  bkDays = [...s.days];
+  renderBkDays();
+  renderBkTimes();
+  summarizeBk(s);
+}
+
+document.getElementById('bkAddTime').addEventListener('click', () => {
+  const val = document.getElementById('bkNewTime').value;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(val)) { showToast('Heure invalide'); return; }
+  if (!bkTimes.includes(val)) bkTimes.push(val);
+  renderBkTimes();
+});
+
+document.getElementById('bkSaveBtn').addEventListener('click', async () => {
+  const enabled = document.getElementById('bkEnabled').checked;
+  if (enabled && !bkTimes.length) { showToast('Ajoute au moins une heure'); return; }
+  if (enabled && !bkDays.length) { showToast('Sélectionne au moins un jour'); return; }
+  const body = {
+    enabled,
+    times: bkTimes,
+    days: bkDays,
+    keepCount: parseInt(document.getElementById('bkKeepCount').value, 10) || 14
+  };
+  const r = await api('POST', '/api/backup/schedule', body);
+  if (r && r.ok) { showToast('Planning enregistré'); summarizeBk(r.schedule); refreshActivity(); }
+  else showToast('Échec de l\'enregistrement du planning');
+});
+
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   await api('POST', '/api/logout');
   window.location.href = '/login.html';
@@ -729,6 +866,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   refreshPlayerHistory();
   refreshUsers();
   refreshBans();
+  refreshBackupSchedule();
   refreshSetupStatus();
   setInterval(refreshStatus, 15000);
   setInterval(refreshActivity, 30000);

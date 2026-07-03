@@ -21,13 +21,12 @@ const users = require('./lib/users');
 const steamUpdate = require('./lib/steamUpdate');
 const serverSetup = require('./lib/serverSetup');
 const bans = require('./lib/bans');
+const backupSchedule = require('./lib/backupSchedule');
 
 // ---------- Config ----------
 const PORT = process.env.PORT || 3000;
 // SAVE_PATH / BACKUP_DIR sont lus dynamiquement (process.env) là où ils sont utilisés,
 // et non figés ici, pour que l'assistant d'installation puisse les définir à chaud.
-const BACKUP_KEEP_COUNT = parseInt(process.env.BACKUP_KEEP_COUNT || '14', 10);
-const BACKUP_CRON = process.env.BACKUP_CRON || '0 4 * * *';
 const RESTART_CRON = process.env.RESTART_CRON || ''; // vide = désactivé
 const RESTART_WARNING_MINUTES = parseInt(process.env.RESTART_WARNING_MINUTES || '5', 10);
 
@@ -86,6 +85,18 @@ function requireAdmin(req, res, next) {
   return res.status(403).json({ error: 'forbidden' });
 }
 
+// admin OU user : toutes les actions serveur. Le rôle "user" n'est refusé que sur l'installation
+// du serveur et la gestion des comptes admin (vérifiées séparément).
+function requireManager(req, res, next) {
+  const role = req.session && req.session.user && req.session.user.role;
+  if (role === 'admin' || role === 'user') return next();
+  return res.status(403).json({ error: 'forbidden' });
+}
+
+function isAdminReq(req) {
+  return req.session && req.session.user && req.session.user.role === 'admin';
+}
+
 // ---------- Auth ----------
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -124,27 +135,34 @@ app.post('/api/me/password', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- Gestion des comptes (admin uniquement) ----------
-app.get('/api/users', requireAuth, requireAdmin, (req, res) => {
-  res.json({ users: users.listUsers() });
+// ---------- Gestion des comptes (admin + user, mais un "user" ne touche pas aux admins) ----------
+// Un compte "user" peut gérer les comptes user/viewer mais ni créer/modifier/supprimer un admin,
+// ni promouvoir quelqu'un admin. Ces garde-fous sont vérifiés côté serveur, pas juste dans l'UI.
+app.get('/api/users', requireAuth, requireManager, (req, res) => {
+  res.json({ users: users.listUsers(), canManageAdmins: isAdminReq(req) });
 });
 
-app.post('/api/users', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/users', requireAuth, requireManager, (req, res) => {
   const { username, password, role } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'username_password_required' });
   if (password.length < 6) return res.status(400).json({ error: 'password_too_short' });
+  if (role === 'admin' && !isAdminReq(req)) return res.status(403).json({ error: 'admin_required' });
   if (users.findUser(username)) return res.status(409).json({ error: 'already_exists' });
-  users.upsertUser(username, password, role === 'viewer' ? 'viewer' : 'admin');
+  users.upsertUser(username, password, role);
   activityLog.log(req.session.user.username, 'user-create', username);
   res.json({ ok: true });
 });
 
-app.put('/api/users/:username', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/users/:username', requireAuth, requireManager, (req, res) => {
   const { username } = req.params;
   const { password, role } = req.body || {};
   if (password && password.length < 6) return res.status(400).json({ error: 'password_too_short' });
   const target = users.findUser(username);
   if (!target) return res.status(404).json({ error: 'not_found' });
+  // Un "user" ne peut ni toucher un compte admin, ni promouvoir quelqu'un admin.
+  if (!isAdminReq(req) && ((target.role || 'admin') === 'admin' || role === 'admin')) {
+    return res.status(403).json({ error: 'admin_required' });
+  }
   try {
     if (role && role !== (target.role || 'admin')) users.setRole(username, role);
     if (password) users.upsertUser(username, password);
@@ -156,9 +174,14 @@ app.put('/api/users/:username', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-app.delete('/api/users/:username', requireAuth, requireAdmin, (req, res) => {
+app.delete('/api/users/:username', requireAuth, requireManager, (req, res) => {
   const { username } = req.params;
   if (username === req.session.user.username) return res.status(400).json({ error: 'cannot_delete_self' });
+  const target = users.findUser(username);
+  if (!target) return res.status(404).json({ error: 'not_found' });
+  if (!isAdminReq(req) && (target.role || 'admin') === 'admin') {
+    return res.status(403).json({ error: 'admin_required' });
+  }
   try {
     users.deleteUser(username);
     activityLog.log(req.session.user.username, 'user-delete', username);
@@ -286,7 +309,7 @@ app.get('/api/settings', requireAuth, async (req, res) => {
 // Indépendant de l'API de jeu : lit/écrit directement le fichier. L'écriture n'est autorisée
 // que serveur éteint — Palworld ne relit le fichier qu'au démarrage, modifier à chaud serait
 // trompeur (et risquerait d'être écrasé).
-app.get('/api/settings/file', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/settings/file', requireAuth, requireManager, async (req, res) => {
   const file = serverSetup.getSettingsFilePath();
   if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'settings_file_not_found' });
   const settings = serverSetup.parseIniOptions(fs.readFileSync(file, 'utf-8'));
@@ -294,7 +317,7 @@ app.get('/api/settings/file', requireAuth, requireAdmin, async (req, res) => {
   res.json({ settings, running: await isServiceRunning() });
 });
 
-app.post('/api/settings/file', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/settings/file', requireAuth, requireManager, async (req, res) => {
   const changes = (req.body && req.body.changes) || {};
   const keys = Object.keys(changes);
   if (!keys.length) return res.status(400).json({ error: 'no_changes' });
@@ -319,6 +342,17 @@ app.post('/api/settings/file', requireAuth, requireAdmin, async (req, res) => {
   keys.forEach(key => {
     content = serverSetup.setIniOption(content, key, String(changes[key]), { quoted: byKey[key].quoted });
   });
+
+  // Garde-fou anti-corruption : si l'écriture avait cassé la ligne OptionSettings (clé perdue,
+  // format invalide), Palworld régénérerait tout aux valeurs par défaut au démarrage. On relit
+  // donc le résultat AVANT d'écrire et on refuse si le compte de clés a changé ou si une valeur
+  // modifiée n'est pas exactement celle attendue.
+  const reparsed = serverSetup.parseIniOptions(content);
+  const reByKey = reparsed ? Object.fromEntries(reparsed.map(o => [o.key, o])) : null;
+  const intact = reparsed && reparsed.length === existing.length
+    && keys.every(k => reByKey[k] && reByKey[k].value === String(changes[k]));
+  if (!intact) return res.status(500).json({ error: 'integrity_check_failed' });
+
   fs.writeFileSync(file, content);
   activityLog.log(req.session.user.username, 'settings-change', keys.join(', '));
   discord.notify(`⚙️ Réglages du monde modifiés par **${req.session.user.username}** : ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}`);
@@ -416,7 +450,7 @@ async function runRestartSequence(stopMessage, waittime = 10) {
   try { await startService(); } catch (_) {}
 }
 
-app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/start', requireAuth, requireManager, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   try {
     await startService();
@@ -428,7 +462,7 @@ app.post('/api/start', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/stop', requireAuth, requireManager, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   const waittime = 10;
   await setAutoRestart(false); // arrêt volontaire : NSSM ne doit pas relancer quand le process sort
@@ -450,7 +484,7 @@ app.post('/api/stop', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/restart', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/restart', requireAuth, requireManager, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   restartInProgress = true;
   const waittime = 10;
@@ -465,7 +499,7 @@ app.post('/api/restart', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ---------- Annonces / kick (admin uniquement) ----------
-app.post('/api/announce', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/announce', requireAuth, requireManager, async (req, res) => {
   const { message } = req.body || {};
   if (!message) return res.status(400).json({ error: 'message_required' });
   try {
@@ -477,7 +511,7 @@ app.post('/api/announce', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/kick', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/kick', requireAuth, requireManager, async (req, res) => {
   const { userid, message } = req.body || {};
   if (!userid) return res.status(400).json({ error: 'userid_required' });
   try {
@@ -491,11 +525,11 @@ app.post('/api/kick', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ---------- Ban / unban (admin uniquement) ----------
-app.get('/api/bans', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/bans', requireAuth, requireManager, (req, res) => {
   res.json({ bans: bans.list() });
 });
 
-app.post('/api/ban', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/ban', requireAuth, requireManager, async (req, res) => {
   const { userid, name } = req.body || {};
   if (!userid) return res.status(400).json({ error: 'userid_required' });
   try {
@@ -509,7 +543,7 @@ app.post('/api/ban', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/unban', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/unban', requireAuth, requireManager, async (req, res) => {
   const { userid } = req.body || {};
   if (!userid) return res.status(400).json({ error: 'userid_required' });
   try {
@@ -524,7 +558,7 @@ app.post('/api/unban', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ---------- Sauvegarde du monde immédiate (sans zip) & arrêt forcé (admin uniquement) ----------
-app.post('/api/save', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/save', requireAuth, requireManager, async (req, res) => {
   try {
     await getPalworldApi().post('/v1/api/save', {});
     activityLog.log(req.session.user.username, 'save');
@@ -534,7 +568,7 @@ app.post('/api/save', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/force-stop', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/force-stop', requireAuth, requireManager, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   try {
     // Arrêt immédiat via NSSM directement (intentionnel → pas de relance auto), plus fiable que
@@ -553,7 +587,7 @@ app.post('/api/force-stop', requireAuth, requireAdmin, async (req, res) => {
 // ---------- Mise à jour du serveur (admin uniquement) ----------
 let updateCheckInProgress = false;
 
-app.get('/api/update/check', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/update/check', requireAuth, requireManager, async (req, res) => {
   if (updateCheckInProgress) return res.status(409).json({ error: 'check_in_progress' });
   updateCheckInProgress = true;
   try {
@@ -568,7 +602,7 @@ app.get('/api/update/check', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/update/apply', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/update/apply', requireAuth, requireManager, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   restartInProgress = true;
   activityLog.log(req.session.user.username, 'update-apply');
@@ -595,7 +629,7 @@ app.post('/api/update/apply', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ---------- Redémarrage programmé avec avertissements (admin uniquement) ----------
-app.post('/api/schedule-restart', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/schedule-restart', requireAuth, requireManager, (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   const minutes = Math.max(1, Math.min(120, parseInt(req.body && req.body.minutes, 10) || 5));
   scheduleRestart(minutes, req.session.user.username);
@@ -604,7 +638,7 @@ app.post('/api/schedule-restart', requireAuth, requireAdmin, (req, res) => {
   res.json({ ok: true, minutes, at: scheduledRestart.at });
 });
 
-app.post('/api/cancel-restart', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/cancel-restart', requireAuth, requireManager, async (req, res) => {
   if (!scheduledRestart) return res.status(400).json({ error: 'no_scheduled_restart' });
   scheduledRestart.cancel();
   scheduledRestart = null;
@@ -641,14 +675,15 @@ function makeBackup() {
 function pruneBackups() {
   const backupDir = process.env.BACKUP_DIR;
   if (!fs.existsSync(backupDir)) return;
+  const keepCount = backupSchedule.load().keepCount;
   const files = fs.readdirSync(backupDir)
     .filter(f => f.endsWith('.zip'))
     .map(f => ({ f, t: fs.statSync(path.join(backupDir, f)).mtimeMs }))
     .sort((a, b) => b.t - a.t);
-  files.slice(BACKUP_KEEP_COUNT).forEach(({ f }) => fs.unlinkSync(path.join(backupDir, f)));
+  files.slice(keepCount).forEach(({ f }) => fs.unlinkSync(path.join(backupDir, f)));
 }
 
-app.post('/api/backup', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/backup', requireAuth, requireManager, async (req, res) => {
   try {
     await getPalworldApi().post('/v1/api/save', {}).catch(() => {});
     const filename = await makeBackup();
@@ -683,6 +718,19 @@ app.get('/api/backups/:filename', requireAuth, (req, res) => {
   res.download(filePath);
 });
 
+// Planning des sauvegardes automatiques (lecture pour tous, modification pour admin/user)
+app.get('/api/backup/schedule', requireAuth, (req, res) => {
+  res.json({ schedule: backupSchedule.load(), crons: backupSchedule.toCronExpressions() });
+});
+
+app.post('/api/backup/schedule', requireAuth, requireManager, (req, res) => {
+  const saved = backupSchedule.save(req.body || {});
+  rescheduleBackups();
+  activityLog.log(req.session.user.username, 'backup-schedule-change',
+    saved.enabled ? `${saved.times.join(', ')} — ${saved.days.length}j/sem` : 'désactivé');
+  res.json({ ok: true, schedule: saved, crons: backupSchedule.toCronExpressions(saved) });
+});
+
 // ---------- Journal d'activité (lecture pour tout le monde) ----------
 app.get('/api/activity', requireAuth, (req, res) => {
   res.json({ entries: activityLog.list(50) });
@@ -694,19 +742,28 @@ app.get('/api/players/history', requireAuth, (req, res) => {
 });
 
 // ---------- Tâches planifiées ----------
-if (BACKUP_CRON) {
-  cron.schedule(BACKUP_CRON, () => {
-    makeBackup()
-      .then(filename => {
-        pruneBackups();
-        activityLog.log('scheduler', 'backup', filename);
-      })
-      .catch(err => {
-        console.error('Backup planifiée échouée:', err.message);
-        discord.notify(`❌ Sauvegarde planifiée échouée : ${err.message}`);
-      });
+// Sauvegardes : (re)programmées dynamiquement depuis la config éditable (data/backup-schedule.json),
+// une tâche cron par horaire. rescheduleBackups() est rappelé quand la config change via l'API.
+let backupJobs = [];
+function rescheduleBackups() {
+  backupJobs.forEach(job => job.stop());
+  backupJobs = [];
+  backupSchedule.toCronExpressions().forEach(expr => {
+    if (!cron.validate(expr)) return;
+    backupJobs.push(cron.schedule(expr, () => {
+      makeBackup()
+        .then(filename => {
+          pruneBackups();
+          activityLog.log('scheduler', 'backup', filename);
+        })
+        .catch(err => {
+          console.error('Backup planifiée échouée:', err.message);
+          discord.notify(`❌ Sauvegarde planifiée échouée : ${err.message}`);
+        });
+    }));
   });
 }
+rescheduleBackups();
 
 if (RESTART_CRON) {
   cron.schedule(RESTART_CRON, async () => {

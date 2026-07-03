@@ -158,12 +158,31 @@ Tu peux retrouver ton IP publique fixe dans Freebox OS ou sur un site comme
 
 ## 4. Nouvelles fonctionnalités
 
-### Rôles admin / viewer
+### Rôles : admin / user / viewer
 
-Chaque compte a un rôle défini à la création (`npm run create-user -- user pass admin|viewer`).
-Un `viewer` voit tout (statut, joueurs, historique, journal, sauvegardes) mais ne peut déclencher
-aucune action. Toutes les routes sensibles sont vérifiées côté serveur (pas juste masquées côté
-navigateur), donc un viewer ne peut pas contourner ça en bidouillant les requêtes.
+Chaque compte a un rôle défini à la création (`npm run create-user -- user pass admin|user|viewer`) :
+- **admin** : accès complet, y compris l'installation du serveur et la gestion des comptes admin.
+- **user** : toutes les actions serveur (start/stop, sauvegardes, annonces, kick/ban, réglages,
+  mises à jour) et la gestion des comptes `user`/`viewer`, mais **pas** l'installation du serveur
+  ni la modification des comptes admin.
+- **viewer** : lecture seule (statut, joueurs, carte, historique, journal, sauvegardes).
+
+Toutes les routes sensibles sont vérifiées côté serveur (pas juste masquées côté navigateur), donc
+un rôle ne peut pas être contourné en bidouillant les requêtes.
+
+### Édition des réglages du monde depuis le web
+
+Onglet "Réglages" (admin/user) : lecture et **édition directe** de `PalWorldSettings.ini`
+(difficulté, taux, PvP…) — les booléens en menus Oui/Non, mot de passe masqués. L'édition n'est
+autorisée que **serveur éteint** (Palworld ne relit ce fichier qu'au démarrage) ; un bouton "Forcer
+l'arrêt pour modifier" le stoppe au besoin. Un contrôle d'intégrité refuse toute modification qui
+casserait le format du fichier (ce qui ferait régénérer les valeurs par défaut par Palworld).
+
+### Sauvegardes automatiques configurables
+
+Onglet "Sauvegardes" : planning éditable depuis le web — activation, **plusieurs horaires par jour**,
+choix des **jours de la semaine**, et nombre de sauvegardes conservées. Stocké dans
+`data/backup-schedule.json`, appliqué immédiatement (sans redémarrage).
 
 ### Journal d'activité
 
