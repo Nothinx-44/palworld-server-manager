@@ -341,3 +341,9 @@ le dashboard.
 
 Toutes les routes utilisées (`/v1/api/info`, `/players`, `/save`, `/shutdown`, `/announce`,
 `/kick`) sont documentées officiellement ici : https://docs.palworldgame.com/api/rest-api/palwold-rest-api/
+
+## Crédits
+
+- Image de la carte du monde issue de [palserver-online-map](https://github.com/Dalufishe/palserver-online-map)
+  de Dalufishe, utilisée avec l'accord de son auteur. Les constantes de conversion des coordonnées
+  monde → carte proviennent du même projet.

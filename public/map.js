@@ -1,6 +1,7 @@
 // Carte en direct : positions et pseudos des joueurs (API REST location_x/y), zoom/pan,
-// regroupement des joueurs proches. Fond : public/map.png (image couvrant les coordonnées
-// carte -1000..1000), sinon grille de secours si le fichier est absent.
+// regroupement des joueurs proches. Fond : public/map.jpg (image couvrant les coordonnées
+// carte -1000..1000, issue de github.com/Dalufishe/palserver-online-map avec l'accord de
+// son auteur), sinon grille de secours si le fichier est absent.
 (function () {
   const canvas = document.getElementById('mapCanvas');
   if (!canvas) return;
@@ -22,7 +23,7 @@
   let mapImageReady = false;
   mapImage.onload = () => { mapImageReady = true; draw(); };
   mapImage.onerror = () => { mapImageReady = false; }; // pas d'image fournie : on garde la grille
-  mapImage.src = '/map.png';
+  mapImage.src = '/map.jpg';
 
   // Coordonnées monde (API REST) -> coordonnées carte du jeu (wx=location_x, wy=location_y ;
   // axes échangés, voir commentaire sur TRANSFORM ci-dessus).
@@ -108,11 +109,6 @@
         ctx.fillStyle = '#e7ebf0';
         ctx.font = 'bold 11px sans-serif';
         ctx.fillText(c.players[0].name || '?', c.x + 10, c.y + 4);
-        // DEBUG temporaire : coordonnées brutes affichées pour calibrer la conversion carte.
-        // À retirer une fois la formule confirmée correcte.
-        ctx.font = '9px monospace';
-        ctx.fillStyle = 'rgba(231, 235, 240, 0.65)';
-        ctx.fillText(`(${Math.round(c.players[0].location_x)}, ${Math.round(c.players[0].location_y)})`, c.x + 10, c.y + 15);
       } else {
         ctx.fillStyle = '#e2984a';
         ctx.strokeStyle = '#14181f';
