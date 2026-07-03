@@ -305,6 +305,20 @@ app.get('/api/settings', requireAuth, async (req, res) => {
   }
 });
 
+// isServiceRunning() (lib/palworldClient.js) échoue "fermé côté watchdog" : en cas d'erreur NSSM
+// (chemin incorrect, nom de service différent, aléa...) elle répond `false`, ce qui est le bon
+// choix pour le watchdog (ne pas redémarrer sur une erreur d'introspection) mais serait dangereux
+// ici — ça laisserait passer une édition alors que le serveur tourne peut-être réellement. On
+// combine donc ce signal avec la joignabilité de l'API REST Palworld (même vérification que le
+// badge "En ligne" du tableau de bord) et on bloque dès que L'UN des deux indique une activité.
+async function isGameServerActive() {
+  const [serviceRunning, apiReachable] = await Promise.all([
+    isServiceRunning(),
+    getPalworldApi().get('/v1/api/info').then(r => r.status === 200).catch(() => false)
+  ]);
+  return serviceRunning || apiReachable;
+}
+
 // ---------- Édition des réglages du monde (PalWorldSettings.ini, admin uniquement) ----------
 // Indépendant de l'API de jeu : lit/écrit directement le fichier. L'écriture n'est autorisée
 // que serveur éteint — Palworld ne relit le fichier qu'au démarrage, modifier à chaud serait
@@ -314,14 +328,14 @@ app.get('/api/settings/file', requireAuth, requireManager, async (req, res) => {
   if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'settings_file_not_found' });
   const settings = serverSetup.parseIniOptions(fs.readFileSync(file, 'utf-8'));
   if (!settings) return res.status(500).json({ error: 'settings_unreadable' });
-  res.json({ settings, running: await isServiceRunning() });
+  res.json({ settings, running: await isGameServerActive() });
 });
 
 app.post('/api/settings/file', requireAuth, requireManager, async (req, res) => {
   const changes = (req.body && req.body.changes) || {};
   const keys = Object.keys(changes);
   if (!keys.length) return res.status(400).json({ error: 'no_changes' });
-  if (await isServiceRunning()) return res.status(409).json({ error: 'server_running' });
+  if (await isGameServerActive()) return res.status(409).json({ error: 'server_running' });
 
   const file = serverSetup.getSettingsFilePath();
   if (!file || !fs.existsSync(file)) return res.status(404).json({ error: 'settings_file_not_found' });
