@@ -454,6 +454,8 @@ async function refreshActivity() {
     'plugin-uninstall': 'a désinstallé un plugin',
     'paldefender-token-set': 'a enregistré le jeton API PalDefender',
     'paldefender-command': 'a exécuté une commande PalDefender',
+    'player-join': 'a rejoint le serveur',
+    'player-leave': 'a quitté le serveur',
     'disk-space-low': 'alerte espace disque faible',
     'auto-restart': 'redémarrage automatique (watchdog)',
     'restart-warning': 'annonce de redémarrage planifié',
@@ -464,11 +466,12 @@ async function refreshActivity() {
     'password-change': 'a changé son mot de passe',
     'steam-update-check': 'vérification de mise à jour SteamCMD'
   };
-  data.entries.slice(0, 15).forEach(e => {
+  data.entries.slice(0, 30).forEach(e => {
     const li = document.createElement('li');
     const date = new Date(e.ts).toLocaleString('fr-FR');
     const label = labels[e.action] || e.action;
-    li.innerHTML = `<span>${escapeHtml(e.username)} ${label}</span><span>${date}</span>`;
+    const details = e.details ? ` — ${escapeHtml(e.details)}` : '';
+    li.innerHTML = `<span>${escapeHtml(e.username)} ${label}${details}</span><span>${date}</span>`;
     activityList.appendChild(li);
   });
 }
@@ -1267,13 +1270,21 @@ function activateTab(name) {
 
 let consoleLines = [];
 
+let consoleNeverWritten = false;
+
 function renderConsole() {
   const pre = document.getElementById('consoleLog');
   const q = document.getElementById('consoleFilter').value.trim().toLowerCase();
   const lines = q ? consoleLines.filter(l => l.toLowerCase().includes(q)) : consoleLines;
-  pre.textContent = lines.length
-    ? lines.join('\n')
-    : (q ? '(aucune ligne ne correspond au filtre)' : '(console vide pour le moment)');
+  if (lines.length) {
+    pre.textContent = lines.join('\n');
+  } else if (q) {
+    pre.textContent = '(aucune ligne ne correspond au filtre)';
+  } else if (consoleNeverWritten) {
+    pre.textContent = "(vide) PalServer.exe n'écrit aucune sortie console exploitable — c'est une limitation connue de Palworld sur Windows, pas un problème du dashboard. Le Journal d'activité ci-dessus reste la meilleure source pour suivre ce qui se passe (démarrages, sauvegardes, joueurs, alertes...).";
+  } else {
+    pre.textContent = '(console vide pour le moment)';
+  }
   pre.scrollTop = pre.scrollHeight;
 }
 
@@ -1292,6 +1303,7 @@ async function refreshConsole() {
   }
   enableBtn.style.display = 'none';
   consoleLines = data.lines || [];
+  consoleNeverWritten = !!data.neverWritten;
   renderConsole();
 }
 

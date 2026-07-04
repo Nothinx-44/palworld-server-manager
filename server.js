@@ -881,12 +881,18 @@ app.get('/api/dashboard/update', requireAuth, async (req, res) => {
 // Alimentée par la redirection stdout/stderr configurée sur le service NSSM (voir
 // lib/serverSetup.js setupNssmService) : disponible dès que le service a été (ré)installé avec
 // cette version. Sur une install plus ancienne, clique "(Ré)installer les services" pour l'activer.
-app.get('/api/console', requireAuth, requireManager, (req, res) => {
+app.get('/api/console', requireAuth, requireManager, async (req, res) => {
   const logPath = serverSetup.getCurrentConsoleLogPath();
   if (!logPath) return res.status(404).json({ error: 'not_configured' });
   const lines = logTail.readTail(logPath, 100 * 1024);
   if (lines === null) return res.status(404).json({ error: 'log_not_found' });
-  res.json({ lines: lines.slice(-300), path: logPath });
+  // PalServer.exe n'écrit aucune sortie stdout/stderr exploitable quand il tourne sans console
+  // attachée (limitation confirmée du binaire Palworld, pas un bug de cette redirection NSSM) :
+  // le fichier reste vide même après un long fonctionnement. Si le serveur est actuellement en
+  // ligne et que le fichier est pourtant vide, on le signale plutôt que de laisser croire que
+  // "ça va se remplir" indéfiniment.
+  const neverWritten = lines.length === 0 && fs.statSync(logPath).size === 0 && await isGameServerActive();
+  res.json({ lines: lines.slice(-300), path: logPath, neverWritten });
 });
 
 // Active la redirection console sur le service existant (pour les serveurs installés avant que
