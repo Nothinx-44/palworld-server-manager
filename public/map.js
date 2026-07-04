@@ -1,16 +1,14 @@
 // Carte en direct : positions et pseudos des joueurs (API REST location_x/y), zoom/pan,
 // regroupement des joueurs proches. Fond : public/map.jpg (image couvrant les coordonnées
-// carte -1000..1000, issue de github.com/Dalufishe/palserver-online-map avec l'accord de
-// son auteur), sinon grille de secours si le fichier est absent.
+// carte -1000..1000), sinon grille de secours si le fichier est absent.
 (function () {
   const canvas = document.getElementById('mapCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
   const MAP_EXTENT = 1000; // coordonnées carte du jeu : -1000..1000 sur les deux axes
-  // Conversion coordonnées monde (API REST) -> coordonnées carte. Constantes reprises d'un projet
-  // tiers fonctionnel (github.com/Dalufishe/palserver-online-map) : les axes X/Y de l'API REST sont
-  // ÉCHANGÉS par rapport aux axes de la carte (location_y alimente l'axe X carte, location_x
+  // Conversion coordonnées monde (API REST) -> coordonnées carte : les axes X/Y de l'API REST
+  // sont ÉCHANGÉS par rapport aux axes de la carte (location_y alimente l'axe X carte, location_x
   // alimente l'axe Y carte) — ce n'était pas un simple signe inversé comme supposé précédemment.
   const TRANSFORM = { offsetX: 123467.1611767, offsetY: -157664.55791065, scale: 462.962962963 };
 
