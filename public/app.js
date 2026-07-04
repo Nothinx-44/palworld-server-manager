@@ -300,8 +300,15 @@ async function refreshPlugins() {
 async function installPlugin(name, label) {
   if (!confirm(`Installer/mettre à jour ${label} vers la dernière version ? Le serveur doit être éteint.`)) return;
   const r = await api('POST', `/api/plugins/${name}/install`, {});
-  if (r && r.ok) { showToast(`${label} ${r.version} installé`); refreshActivity(); }
-  else showToast(r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord' : `Échec de l'installation de ${label}`);
+  if (r && r.ok) {
+    showToast(r.paldefenderConfigured
+      ? `${label} ${r.version} installé — API de commandes prête, plus rien à configurer`
+      : `${label} ${r.version} installé`);
+    refreshActivity();
+    if (name === 'paldefender') refreshPaldefenderApiStatus();
+  } else {
+    showToast(r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord' : `Échec de l'installation de ${label}`);
+  }
   refreshPlugins();
 }
 

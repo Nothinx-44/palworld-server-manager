@@ -97,6 +97,38 @@ test('enablePalDefenderRestApi : préserve une adresse déjà personnalisée (no
   assert.strictEqual(cfg.Address, '10.0.0.5');
 });
 
+function tokensDir(binDir) {
+  return path.join(binDir, 'PalDefender', 'RESTAPI', 'Tokens');
+}
+
+test('ensurePalDefenderToken : crée un jeton si aucun n\'existe (hors TokenExample.json)', () => {
+  const binDir = setupServerDir();
+  const dir = tokensDir(binDir);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'TokenExample.json'), JSON.stringify({ Token: 'exemple-public-connu' }));
+
+  const result = plugins.ensurePalDefenderToken(binDir);
+
+  assert.strictEqual(result.created, true);
+  assert.notStrictEqual(result.token, 'exemple-public-connu');
+  assert.ok(result.token.length >= 32);
+  const written = JSON.parse(fs.readFileSync(path.join(dir, 'Dashboard.json'), 'utf-8'));
+  assert.strictEqual(written.Token, result.token);
+});
+
+test('ensurePalDefenderToken : ne recrée pas un jeton déjà présent', () => {
+  const binDir = setupServerDir();
+  const dir = tokensDir(binDir);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'MonJeton.json'), JSON.stringify({ Token: 'deja-la' }));
+
+  const result = plugins.ensurePalDefenderToken(binDir);
+
+  assert.strictEqual(result.created, false);
+  assert.strictEqual(result.token, 'deja-la');
+  assert.strictEqual(fs.existsSync(path.join(dir, 'Dashboard.json')), false, 'ne doit pas créer de second fichier');
+});
+
 test('detectPalDefenderToken : erreur si RESTConfig.json absent', () => {
   const binDir = setupServerDir();
   const r = plugins.detectPalDefenderToken();

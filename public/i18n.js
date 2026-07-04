@@ -267,10 +267,8 @@
     'Enregistrer': 'Save',
     'Importer automatiquement': 'Import automatically',
     '…ou colle un jeton manuellement': '…or paste a token manually',
-    "L'API REST est activée automatiquement à l'installation du plugin (redémarre le serveur une fois si c'est un premier lancement). Il ne reste qu'à créer un jeton dans":
-      "The REST API is enabled automatically when the plugin is installed (restart the server once if it's a first launch). All that's left is to create a token in",
-    "(voir la doc PalDefender) — le bouton ci-dessus l'importe automatiquement, ou colle-le toi-même.":
-      "(see the PalDefender docs) — the button above imports it automatically, or paste it yourself.",
+    "Tout est automatique à l'installation du plugin (API activée + jeton créé). Utilise le bouton ci-dessus seulement si PalDefender a été installé autrement qu'avec ce dashboard, ou pour récupérer un jeton créé manuellement.":
+      "Everything is automatic when the plugin is installed (API enabled + token created). Only use the button above if PalDefender was installed some other way, or to pick up a manually created token.",
     'Installation/désinstallation possibles uniquement serveur éteint (les fichiers sont chargés par le processus en cours d\'exécution).': 'Install/uninstall only possible while the server is stopped (the files are loaded by the running process).',
     '✅ Installé': '✅ Installed',
     '⭕ Non installé': '⭕ Not installed',
@@ -324,6 +322,7 @@
     [/^(\d+)j (\d+)h (\d+)min$/, '$1d $2h $3min'],
     [/^⏳ Redémarrage programmé dans ~(\d+) min\.$/, '⏳ Restart scheduled in ~$1 min.'],
     [/^Redémarrage programmé dans (\d+) min$/, 'Restart scheduled in $1 min'],
+    [/^(UE4SS|PalDefender) (.+) installé — API de commandes prête, plus rien à configurer$/, '$1 $2 installed — Command API ready, nothing left to configure'],
     [/^(UE4SS|PalDefender) (.+) installé$/, '$1 $2 installed'],
     [/^(UE4SS|PalDefender) désinstallé$/, '$1 uninstalled'],
     [/^Échec de l'installation de (.+)$/, 'Failed to install $1'],

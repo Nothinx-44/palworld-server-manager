@@ -914,10 +914,16 @@ app.post('/api/plugins/:name/install', requireAuth, requireManager, async (req, 
   if (!plugins.PLUGINS[name]) return res.status(404).json({ error: 'unknown_plugin' });
   if (await isGameServerActive()) return res.status(409).json({ error: 'server_running' });
   try {
-    const version = await plugins.install(name);
+    const { version, paldefenderToken } = await plugins.install(name);
     activityLog.log(req.session.user.username, 'plugin-install', `${plugins.PLUGINS[name].label} ${version}`);
     discord.notify(`🧩 **${plugins.PLUGINS[name].label} ${version}** installé par **${req.session.user.username}**`);
-    res.json({ ok: true, version });
+    // PalDefender : le jeton (existant ou tout juste créé) est enregistré directement dans le
+    // dashboard, pour que les Commandes Admin soient utilisables sans étape manuelle.
+    if (paldefenderToken) {
+      updateEnvFile({ PALDEFENDER_API_TOKEN: paldefenderToken, PALDEFENDER_API_URL: process.env.PALDEFENDER_API_URL || 'http://127.0.0.1:17993' });
+      activityLog.log(req.session.user.username, 'paldefender-token-set');
+    }
+    res.json({ ok: true, version, paldefenderConfigured: !!paldefenderToken });
   } catch (err) {
     res.status(500).json({ error: String(err.message || err) });
   }
