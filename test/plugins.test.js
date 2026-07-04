@@ -57,3 +57,42 @@ test('les deux plugins utilisent des fichiers marqueurs différents (pas de coll
   const overlap = plugins.PLUGINS.paldefender.coreFiles.filter(f => ue4ssFiles.has(f));
   assert.deepStrictEqual(overlap, []);
 });
+
+function restConfigPath(binDir) {
+  return path.join(binDir, 'PalDefender', 'RESTAPI', 'RESTConfig.json');
+}
+
+test('enablePalDefenderRestApi : crée une config activée quand aucune n\'existe', () => {
+  const binDir = setupServerDir();
+  plugins.enablePalDefenderRestApi(binDir);
+  const cfg = JSON.parse(fs.readFileSync(restConfigPath(binDir), 'utf-8'));
+  assert.strictEqual(cfg.Enabled, true);
+  assert.strictEqual(cfg.Address, '127.0.0.1');
+  assert.strictEqual(cfg.Port, 17993);
+});
+
+test('enablePalDefenderRestApi : active une config existante sans perdre les autres clés', () => {
+  const binDir = setupServerDir();
+  const configPath = restConfigPath(binDir);
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify({ Enabled: false, Address: '0.0.0.0', Port: 17993, CustomKey: 42 }));
+
+  plugins.enablePalDefenderRestApi(binDir);
+
+  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  assert.strictEqual(cfg.Enabled, true);
+  assert.strictEqual(cfg.Address, '127.0.0.1', 'une écoute 0.0.0.0 doit être corrigée en local');
+  assert.strictEqual(cfg.CustomKey, 42, 'les autres clés doivent être préservées');
+});
+
+test('enablePalDefenderRestApi : préserve une adresse déjà personnalisée (non 0.0.0.0)', () => {
+  const binDir = setupServerDir();
+  const configPath = restConfigPath(binDir);
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify({ Enabled: false, Address: '10.0.0.5', Port: 17993 }));
+
+  plugins.enablePalDefenderRestApi(binDir);
+
+  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  assert.strictEqual(cfg.Address, '10.0.0.5');
+});

@@ -266,9 +266,9 @@
     "API de commandes (pour l'onglet Tableau de bord)": 'Command API (for the Dashboard tab)',
     'Enregistrer': 'Save',
     'Colle ton jeton ici': 'Paste your token here',
-    'Le jeton se trouve dans': 'The token is located in',
-    '(après avoir activé l\'API dans': '(after enabling the API in',
-    'et créé un jeton, voir la doc PalDefender). Le dashboard ne touche jamais aux fichiers du plugin.': 'and created a token, see the PalDefender docs). The dashboard never touches plugin files.',
+    "L'API REST est activée automatiquement à l'installation du plugin (redémarre le serveur une fois si c'est un premier lancement). Il ne reste qu'à créer un jeton dans":
+      "The REST API is enabled automatically when the plugin is installed (restart the server once if it's a first launch). All that's left is to create a token in",
+    '(voir la doc PalDefender) et à le coller ci-dessus.': '(see the PalDefender docs) and paste it above.',
     'Installation/désinstallation possibles uniquement serveur éteint (les fichiers sont chargés par le processus en cours d\'exécution).': 'Install/uninstall only possible while the server is stopped (the files are loaded by the running process).',
     '✅ Installé': '✅ Installed',
     '⭕ Non installé': '⭕ Not installed',
