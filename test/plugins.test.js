@@ -96,3 +96,39 @@ test('enablePalDefenderRestApi : préserve une adresse déjà personnalisée (no
   const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   assert.strictEqual(cfg.Address, '10.0.0.5');
 });
+
+test('detectPalDefenderToken : erreur si RESTConfig.json absent', () => {
+  const binDir = setupServerDir();
+  const r = plugins.detectPalDefenderToken();
+  assert.strictEqual(r.error, 'no_rest_config');
+  assert.strictEqual(fs.existsSync(binDir), true, 'lecture seule : le dossier ne doit pas être créé');
+});
+
+test('detectPalDefenderToken : erreur si aucun jeton dans Tokens/', () => {
+  const binDir = setupServerDir();
+  plugins.enablePalDefenderRestApi(binDir);
+  const tokensDir = path.join(binDir, 'PalDefender', 'RESTAPI', 'Tokens');
+  fs.mkdirSync(tokensDir, { recursive: true });
+  fs.writeFileSync(path.join(tokensDir, 'TokenExample.json'), JSON.stringify({ Token: 'exemple-public-connu' }));
+
+  const r = plugins.detectPalDefenderToken();
+  assert.strictEqual(r.error, 'no_token_file', 'TokenExample.json ne doit jamais être importé');
+});
+
+test('detectPalDefenderToken : trouve un jeton réel (lecture seule)', () => {
+  const binDir = setupServerDir();
+  plugins.enablePalDefenderRestApi(binDir);
+  const tokensDir = path.join(binDir, 'PalDefender', 'RESTAPI', 'Tokens');
+  fs.mkdirSync(tokensDir, { recursive: true });
+  fs.writeFileSync(path.join(tokensDir, 'TokenExample.json'), JSON.stringify({ Token: 'exemple-public-connu' }));
+  fs.writeFileSync(path.join(tokensDir, 'Dashboard.json'), JSON.stringify({ Token: 'mon-vrai-jeton' }));
+
+  const before = fs.readFileSync(path.join(tokensDir, 'Dashboard.json'), 'utf-8');
+  const r = plugins.detectPalDefenderToken();
+  const after = fs.readFileSync(path.join(tokensDir, 'Dashboard.json'), 'utf-8');
+
+  assert.strictEqual(r.token, 'mon-vrai-jeton');
+  assert.strictEqual(r.enabled, true);
+  assert.strictEqual(r.file, 'Dashboard.json');
+  assert.strictEqual(before, after, 'lecture seule : le fichier ne doit pas être modifié');
+});

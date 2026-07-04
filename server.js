@@ -933,10 +933,9 @@ app.post('/api/plugins/:name/uninstall', requireAuth, requireManager, async (req
 });
 
 // ---------- Commandes admin PalDefender (admin uniquement — pas les comptes "user") ----------
-// Pas d'auto-configuration côté dashboard (pas de génération de jeton ni d'écriture dans les
-// fichiers de PalDefender) : l'admin suit la doc officielle de PalDefender pour activer
-// RESTConfig.json et créer un jeton lui-même, puis le colle ici. Le dashboard se contente
-// d'appeler l'API avec ce jeton — un simple appel HTTP, rien de plus.
+// L'API REST est activée automatiquement à l'installation du plugin (voir
+// lib/plugins.js#enablePalDefenderRestApi). Le jeton, lui, reste soit collé manuellement, soit
+// détecté (lecture seule) depuis PalDefender/RESTAPI/Tokens/.
 app.get('/api/paldefender/config', requireAuth, requireAdmin, (req, res) => {
   res.json({
     configured: !!process.env.PALDEFENDER_API_TOKEN,
@@ -950,6 +949,17 @@ app.post('/api/paldefender/config', requireAuth, requireAdmin, (req, res) => {
   updateEnvFile({ PALDEFENDER_API_TOKEN: token, PALDEFENDER_API_URL: (url || 'http://127.0.0.1:17993').trim() });
   activityLog.log(req.session.user.username, 'paldefender-token-set');
   res.json({ ok: true });
+});
+
+app.post('/api/paldefender/detect', requireAuth, requireAdmin, (req, res) => {
+  const r = plugins.detectPalDefenderToken();
+  if (r.error) return res.status(404).json(r);
+  updateEnvFile({
+    PALDEFENDER_API_TOKEN: r.token,
+    PALDEFENDER_API_URL: process.env.PALDEFENDER_API_URL || 'http://127.0.0.1:17993'
+  });
+  activityLog.log(req.session.user.username, 'paldefender-token-set');
+  res.json({ ok: true, enabled: r.enabled, file: r.file });
 });
 
 app.post('/api/paldefender/command', requireAuth, requireAdmin, async (req, res) => {

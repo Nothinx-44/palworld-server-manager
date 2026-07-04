@@ -265,10 +265,12 @@
     '⚠️ Binaire fermé (code non public) fourni par ses auteurs — installé directement depuis leur release GitHub officielle, jamais modifié par ce dashboard.': '⚠️ Closed binary (non-public code) provided by its authors — installed directly from their official GitHub release, never modified by this dashboard.',
     "API de commandes (pour l'onglet Tableau de bord)": 'Command API (for the Dashboard tab)',
     'Enregistrer': 'Save',
-    'Colle ton jeton ici': 'Paste your token here',
+    'Importer automatiquement': 'Import automatically',
+    '…ou colle un jeton manuellement': '…or paste a token manually',
     "L'API REST est activée automatiquement à l'installation du plugin (redémarre le serveur une fois si c'est un premier lancement). Il ne reste qu'à créer un jeton dans":
       "The REST API is enabled automatically when the plugin is installed (restart the server once if it's a first launch). All that's left is to create a token in",
-    '(voir la doc PalDefender) et à le coller ci-dessus.': '(see the PalDefender docs) and paste it above.',
+    "(voir la doc PalDefender) — le bouton ci-dessus l'importe automatiquement, ou colle-le toi-même.":
+      "(see the PalDefender docs) — the button above imports it automatically, or paste it yourself.",
     'Installation/désinstallation possibles uniquement serveur éteint (les fichiers sont chargés par le processus en cours d\'exécution).': 'Install/uninstall only possible while the server is stopped (the files are loaded by the running process).',
     '✅ Installé': '✅ Installed',
     '⭕ Non installé': '⭕ Not installed',
@@ -277,6 +279,9 @@
     "Colle un jeton d'abord": 'Paste a token first',
     'Jeton enregistré': 'Token saved',
     "Échec de l'enregistrement": 'Failed to save',
+    'Serveur non installé': 'Server not installed',
+    'RESTConfig.json introuvable — démarre le serveur une fois avec PalDefender installé': 'RESTConfig.json not found — start the server once with PalDefender installed',
+    'Aucun jeton trouvé dans Tokens/ — crée-en un (voir doc PalDefender) ou colle-le manuellement': 'No token found in Tokens/ — create one (see PalDefender docs) or paste it manually',
     // Comptes
     'Mon compte': 'My account',
     'Changer le mot de passe': 'Change password',
@@ -326,6 +331,8 @@
     [/^Installer\/mettre à jour (.+) vers la dernière version \? Le serveur doit être éteint\.$/, 'Install/update $1 to the latest version? The server must be stopped.'],
     [/^Désinstaller (.+) \? Le serveur doit être éteint\.$/, 'Uninstall $1? The server must be stopped.'],
     [/^✅ Installé — (.+)$/, '✅ Installed — $1'],
+    [/^Jeton importé \((.+)\)$/, 'Token imported ($1)'],
+    [/^Jeton importé \((.+)\) — pense à mettre Enabled: true dans RESTConfig\.json puis à redémarrer le serveur$/, 'Token imported ($1) — remember to set Enabled: true in RESTConfig.json then restart the server'],
     [/^Échec : (.+)$/, 'Failed: $1'],
     [/^Bannir (.+) \? Il sera déconnecté et ne pourra plus se reconnecter\.$/, 'Ban $1? They will be disconnected and unable to reconnect.'],
     [/^Bannir (.+) \? Il sera déconnecté \(s'il est en ligne\) et ne pourra plus se reconnecter\.$/, "Ban $1? They will be disconnected (if online) and unable to reconnect."],
