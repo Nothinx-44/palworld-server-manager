@@ -114,6 +114,7 @@ test('ensurePalDefenderToken : crée un jeton si aucun n\'existe (hors TokenExam
   assert.ok(result.token.length >= 32);
   const written = JSON.parse(fs.readFileSync(path.join(dir, 'Dashboard.json'), 'utf-8'));
   assert.strictEqual(written.Token, result.token);
+  assert.deepStrictEqual(written.Permissions, ['REST.*'], 'sans Permissions, PalDefender traite chaque route comme inexistante (404)');
 });
 
 test('ensurePalDefenderToken : ne recrée pas un jeton déjà présent', () => {
