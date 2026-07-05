@@ -405,7 +405,10 @@ document.getElementById('pdCommandForm').addEventListener('submit', async e => {
     Message: document.getElementById('pdMessage').value.trim(),
     Sender: document.getElementById('pdSender').value.trim(),
     SendType: document.getElementById('pdSendType').value,
-    IP: document.getElementById('pdBanIp').checked
+    IP: document.getElementById('pdBanIp').checked,
+    // Nom lisible (si le pseudo saisi correspond à un joueur connu) : sert à afficher un vrai
+    // pseudo dans la liste des bannis plutôt que le UserId brut.
+    _name: matched ? matched.name : (targetInput !== target ? targetInput : undefined)
   };
 
   const r = await api('POST', '/api/paldefender/command', { command, target, fields });
@@ -414,17 +417,30 @@ document.getElementById('pdCommandForm').addEventListener('submit', async e => {
     e.target.reset();
     updatePdFieldsVisibility();
     refreshActivity();
+    if (['ban', 'banip', 'unban', 'unbanip'].includes(command)) refreshBans();
   } else {
     showToast(r && r.error === 'not_configured' ? 'API PalDefender non configurée' : `Échec : ${(r && r.error) || 'erreur inconnue'}`);
   }
 });
 
+let activityEntries = [];
+let activityPage = 0;
+const ACTIVITY_PER_PAGE = 10;
+
 async function refreshActivity() {
   const data = await api('GET', '/api/activity');
   if (!data) return;
+  activityEntries = data.entries || [];
+  activityPage = 0;
+  renderActivityPage();
+}
+
+function renderActivityPage() {
   activityList.innerHTML = '';
-  if (!data.entries.length) {
+  const pager = document.getElementById('activityPager');
+  if (!activityEntries.length) {
     activityList.innerHTML = '<li>Aucune activité enregistrée.</li>';
+    if (pager) pager.style.display = 'none';
     return;
   }
   const labels = {
@@ -466,7 +482,10 @@ async function refreshActivity() {
     'password-change': 'a changé son mot de passe',
     'steam-update-check': 'vérification de mise à jour SteamCMD'
   };
-  data.entries.slice(0, 30).forEach(e => {
+  const totalPages = Math.ceil(activityEntries.length / ACTIVITY_PER_PAGE);
+  activityPage = Math.max(0, Math.min(activityPage, totalPages - 1));
+  const start = activityPage * ACTIVITY_PER_PAGE;
+  activityEntries.slice(start, start + ACTIVITY_PER_PAGE).forEach(e => {
     const li = document.createElement('li');
     const date = new Date(e.ts).toLocaleString('fr-FR');
     const label = labels[e.action] || e.action;
@@ -474,7 +493,17 @@ async function refreshActivity() {
     li.innerHTML = `<span>${escapeHtml(e.username)} ${label}${details}</span><span>${date}</span>`;
     activityList.appendChild(li);
   });
+
+  if (pager) {
+    pager.style.display = totalPages > 1 ? 'flex' : 'none';
+    document.getElementById('activityPageInfo').textContent = `Page ${activityPage + 1} / ${totalPages}`;
+    document.getElementById('activityPrev').disabled = activityPage === 0;
+    document.getElementById('activityNext').disabled = activityPage >= totalPages - 1;
+  }
 }
+
+document.getElementById('activityPrev').addEventListener('click', () => { activityPage--; renderActivityPage(); });
+document.getElementById('activityNext').addEventListener('click', () => { activityPage++; renderActivityPage(); });
 
 // Menu contextuel sur un nom de joueur (historique) : stats globales + ban rapide.
 function closePlayerMenu() {
@@ -1025,7 +1054,7 @@ async function refreshSetupStatus() {
   renderSetupChecklist(data);
   fillSetupForm(data.current || {});
   if (data.installing) {
-    setupForm.style.display = 'block';
+    document.getElementById('setupFormPanel').style.display = 'block';
     setupSubmitBtn.disabled = true;
     setupLogEl.style.display = 'block';
     listenSetupStream();
@@ -1056,7 +1085,8 @@ function listenSetupStream() {
 }
 
 setupToggleBtn.addEventListener('click', () => {
-  setupForm.style.display = setupForm.style.display === 'none' ? 'block' : 'none';
+  const panel = document.getElementById('setupFormPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 });
 
 setupForm.addEventListener('submit', async (e) => {
@@ -1262,73 +1292,8 @@ function activateTab(name) {
   localStorage.setItem('activeTab', name);
   // La carte a besoin d'un redraw quand son onglet devient visible (canvas de taille nulle avant)
   if (name === 'map') requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
-  // La console n'est chargée qu'à la demande (fichier potentiellement volumineux), au moment où
-  // l'onglet Activité devient visible plutôt que par un intervalle qui tournerait en permanence.
-  if (name === 'activity' && isManager()) refreshConsole();
   if (name === 'plugins') { refreshPlugins(); refreshPaldefenderApiStatus(); }
 }
-
-let consoleLines = [];
-
-let consoleNeverWritten = false;
-
-function renderConsole() {
-  const pre = document.getElementById('consoleLog');
-  const q = document.getElementById('consoleFilter').value.trim().toLowerCase();
-  const lines = q ? consoleLines.filter(l => l.toLowerCase().includes(q)) : consoleLines;
-  if (lines.length) {
-    pre.textContent = lines.join('\n');
-  } else if (q) {
-    pre.textContent = '(aucune ligne ne correspond au filtre)';
-  } else if (consoleNeverWritten) {
-    pre.textContent = "(vide) PalServer.exe n'écrit aucune sortie console exploitable — c'est une limitation connue de Palworld sur Windows, pas un problème du dashboard. Le Journal d'activité ci-dessus reste la meilleure source pour suivre ce qui se passe (démarrages, sauvegardes, joueurs, alertes...).";
-  } else {
-    pre.textContent = '(console vide pour le moment)';
-  }
-  pre.scrollTop = pre.scrollHeight;
-}
-
-async function refreshConsole() {
-  const pre = document.getElementById('consoleLog');
-  if (!pre) return;
-  const enableBtn = document.getElementById('consoleEnableBtn');
-  const data = await api('GET', '/api/console');
-  if (!data || data.error) {
-    pre.textContent =
-      data && data.error === 'not_configured' ? 'Serveur pas encore installé.'
-      : data && data.error === 'log_not_found' ? 'Console pas encore active sur ce serveur — clique "Activer la console" ci-dessus, puis redémarre le serveur.'
-      : 'Impossible de charger la console.';
-    enableBtn.style.display = (data && data.error === 'log_not_found') ? 'inline-block' : 'none';
-    return;
-  }
-  enableBtn.style.display = 'none';
-  consoleLines = data.lines || [];
-  consoleNeverWritten = !!data.neverWritten;
-  renderConsole();
-}
-
-document.getElementById('consoleRefreshBtn').addEventListener('click', refreshConsole);
-document.getElementById('consoleFilter').addEventListener('input', renderConsole);
-
-document.getElementById('consoleEnableBtn').addEventListener('click', async () => {
-  const r = await api('POST', '/api/console/enable', {});
-  if (r && r.ok) {
-    showToast('Console activée — redémarre le serveur pour qu\'elle commence à enregistrer');
-    refreshConsole();
-  } else {
-    showToast(r && r.error === 'service_not_registered'
-      ? 'Service Windows introuvable — (ré)installe les services depuis le lanceur'
-      : 'Échec de l\'activation de la console');
-  }
-});
-
-// Auto-refresh : uniquement quand la case est cochée ET que l'onglet Activité est visible
-// (inutile de solliciter le serveur quand la console n'est pas à l'écran).
-setInterval(() => {
-  const auto = document.getElementById('consoleAutoRefresh');
-  const tab = document.getElementById('tab-activity');
-  if (auto && auto.checked && tab && tab.classList.contains('active') && isManager()) refreshConsole();
-}, 5000);
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => activateTab(btn.dataset.tab));

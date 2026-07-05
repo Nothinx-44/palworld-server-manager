@@ -143,6 +143,8 @@
     'Joueurs bannis': 'Banned players',
     'Aucun joueur banni.': 'No banned players.',
     'Débannir': 'Unban',
+    '← Précédent': '← Previous',
+    'Suivant →': 'Next →',
     // Console
     'Console serveur': 'Server console',
     'Rafraîchir': 'Refresh',

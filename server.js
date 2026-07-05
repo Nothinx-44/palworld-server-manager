@@ -29,7 +29,6 @@ const networkInfo = require('./lib/networkInfo');
 const plugins = require('./lib/plugins');
 const { updateEnvFile } = require('./lib/envFile');
 const paldefenderApi = require('./lib/paldefenderApi');
-const logTail = require('./lib/logTail');
 const dashboardUpdate = require('./lib/dashboardUpdate');
 
 // ---------- Config ----------
@@ -573,7 +572,19 @@ app.post('/api/unban', requireAuth, requireManager, async (req, res) => {
   const { userid } = req.body || {};
   if (!userid) return res.status(400).json({ error: 'userid_required' });
   try {
-    await getPalworldApi().post('/v1/api/unban', { userid });
+    // Débannit des deux côtés : API officielle Palworld (banlist.txt) ET, si PalDefender est
+    // configuré, sa propre banlist — un joueur banni via les Commandes Admin ne se débannit que
+    // par PalDefender. On ignore l'échec individuel de chaque canal (le joueur peut n'être banni
+    // que d'un seul côté), et on n'échoue que si les deux échouent.
+    const results = await Promise.allSettled([
+      getPalworldApi().post('/v1/api/unban', { userid }),
+      process.env.PALDEFENDER_API_TOKEN
+        ? paldefenderApi.COMMANDS.unban.run(userid, {})
+        : Promise.reject(new Error('paldefender_not_configured'))
+    ]);
+    const officialOk = results[0].status === 'fulfilled';
+    const pdOk = results[1].status === 'fulfilled';
+    if (!officialOk && !pdOk) throw new Error('unban_failed');
     await bans.remove(userid);
     activityLog.log(req.session.user.username, 'unban', userid);
     discord.notify(`♻️ Joueur débanni par **${req.session.user.username}**`);
@@ -869,45 +880,12 @@ app.get('/api/network-info', requireAuth, async (req, res) => {
 });
 
 app.get('/api/activity', requireAuth, (req, res) => {
-  res.json({ entries: activityLog.list(50) });
+  res.json({ entries: activityLog.list(200) });
 });
 
 // Nouvelle version du dashboard disponible ? (comparée aux releases GitHub publiques)
 app.get('/api/dashboard/update', requireAuth, async (req, res) => {
   res.json(await dashboardUpdate.check());
-});
-
-// ---------- Console serveur (admin/user uniquement : peut contenir des IP de joueurs) ----------
-// Alimentée par la redirection stdout/stderr configurée sur le service NSSM (voir
-// lib/serverSetup.js setupNssmService) : disponible dès que le service a été (ré)installé avec
-// cette version. Sur une install plus ancienne, clique "(Ré)installer les services" pour l'activer.
-app.get('/api/console', requireAuth, requireManager, async (req, res) => {
-  const logPath = serverSetup.getCurrentConsoleLogPath();
-  if (!logPath) return res.status(404).json({ error: 'not_configured' });
-  const lines = logTail.readTail(logPath, 100 * 1024);
-  if (lines === null) return res.status(404).json({ error: 'log_not_found' });
-  // PalServer.exe n'écrit aucune sortie stdout/stderr exploitable quand il tourne sans console
-  // attachée (limitation confirmée du binaire Palworld, pas un bug de cette redirection NSSM) :
-  // le fichier reste vide même après un long fonctionnement. Si le serveur est actuellement en
-  // ligne et que le fichier est pourtant vide, on le signale plutôt que de laisser croire que
-  // "ça va se remplir" indéfiniment.
-  const neverWritten = lines.length === 0 && fs.statSync(logPath).size === 0 && await isGameServerActive();
-  res.json({ lines: lines.slice(-300), path: logPath, neverWritten });
-});
-
-// Active la redirection console sur le service existant (pour les serveurs installés avant que
-// la console existe), sans passer par une réinstallation complète des services.
-app.post('/api/console/enable', requireAuth, requireManager, async (req, res) => {
-  try {
-    const logPath = await serverSetup.enableConsoleRedirect();
-    activityLog.log(req.session.user.username, 'console-enable');
-    res.json({ ok: true, path: logPath });
-  } catch (err) {
-    const message = String(err.message || err);
-    if (message === 'server_not_installed') return res.status(404).json({ error: 'not_configured' });
-    if (message === 'service_not_registered') return res.status(404).json({ error: 'service_not_registered' });
-    res.status(500).json({ error: message });
-  }
 });
 
 // ---------- Plugins (UE4SS / PalDefender), admin/user, serveur éteint pour installer/retirer ----------
@@ -982,6 +960,12 @@ app.post('/api/paldefender/command', requireAuth, requireAdmin, async (req, res)
   try {
     const result = await cmd.run(target, fields || {});
     activityLog.log(req.session.user.username, 'paldefender-command', `${cmd.label}${target ? ' — ' + target : ''}`);
+    // Synchronise notre liste des bannis (data/bans.json) avec les ban/unban passés par ce
+    // panneau : sinon un joueur banni via les Commandes Admin n'apparaîtrait pas dans la liste
+    // "Joueurs bannis" et ne pourrait pas être débanni depuis l'UI.
+    const name = (fields && fields._name) || target;
+    if (command === 'ban' || command === 'banip') await bans.add(target, name, req.session.user.username);
+    if (command === 'unban' || command === 'unbanip') await bans.remove(target);
     res.json({ ok: true, result });
   } catch (err) {
     const message = String(err.message || err);

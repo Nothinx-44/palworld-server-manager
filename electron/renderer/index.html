@@ -46,7 +46,7 @@
     background: var(--panel-alt); border: 1px solid var(--line); border-radius: 6px; color: var(--text);
   }
   .browse-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .setup-log { max-height: 130px; }
+  .setup-log { max-height: 260px; }
 
   .share-box {
     background: var(--panel-alt); border: 1px solid var(--line); border-radius: 8px;
@@ -117,7 +117,6 @@
             <button class="action primary" type="submit" id="installBtn">Lancer l'installation</button>
           </form>
           <p class="error" id="setupError"></p>
-          <pre class="setup-log" id="log" style="display:none;"></pre>
         </div>
       </div>
 
@@ -163,6 +162,13 @@
           <p class="error" id="accountError"></p>
         </div>
       </div>
+    </div>
+
+    <!-- Journal d'installation : pleine largeur en bas, pour être lisible pendant le
+         téléchargement/installation plutôt que coincé dans la colonne de gauche. -->
+    <div class="panel" id="logPanel" style="display:none; margin-top:16px;">
+      <h2>Journal d'installation</h2>
+      <pre class="setup-log" id="log"></pre>
     </div>
   </div>
 

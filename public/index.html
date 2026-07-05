@@ -87,15 +87,54 @@
         </div>
       </div>
 
-      <div class="panel" style="margin-bottom: 22px;">
-        <h2>Joueurs connectés</h2>
-        <table id="playersTable">
-          <thead>
-            <tr><th>Nom</th><th>Niveau</th><th>Ping</th><th></th></tr>
-          </thead>
-          <tbody id="playersBody"></tbody>
-        </table>
-        <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
+      <div class="grid">
+        <div class="panel">
+          <h2>Joueurs connectés</h2>
+          <table id="playersTable">
+            <thead>
+              <tr><th>Nom</th><th>Niveau</th><th>Ping</th><th></th></tr>
+            </thead>
+            <tbody id="playersBody"></tbody>
+          </table>
+          <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
+        </div>
+
+        <div class="panel" data-admin-only>
+          <h2>Commandes Admin <span class="muted-hint">(PalDefender)</span></h2>
+          <p class="empty" id="pdCommandsUnavailable" style="display:none;">API PalDefender non configurée — configure-la depuis l'onglet Plugins.</p>
+          <form class="account-form" id="pdCommandForm">
+            <select id="pdCommand">
+              <option value="kick">Kick un joueur</option>
+              <option value="ban">Bannir un joueur</option>
+              <option value="unban">Débannir un joueur</option>
+              <option value="banip">Bannir une IP</option>
+              <option value="unbanip">Débannir une IP</option>
+              <option value="message">Message à un joueur</option>
+              <option value="broadcast">Annonce (Broadcast)</option>
+              <option value="alert">Alerte</option>
+            </select>
+
+            <input type="text" id="pdTarget" list="pdOnlinePlayers" placeholder="Joueur (nom ou UserId) ou IP">
+            <datalist id="pdOnlinePlayers"></datalist>
+
+            <select id="pdSendType" style="display:none;">
+              <option value="PlayerChat">Chat joueur</option>
+              <option value="PlayerGlobalChat">Chat global</option>
+              <option value="PlayerLogNormal">Log normal</option>
+              <option value="PlayerLogImportant">Log important</option>
+              <option value="PlayerLogVeryImportant">Log très important</option>
+            </select>
+
+            <input type="text" id="pdMessage" placeholder="Message" style="display:none;">
+            <input type="text" id="pdReason" placeholder="Raison (optionnel)" style="display:none;">
+            <input type="text" id="pdSender" placeholder="Nom de l'expéditeur (optionnel)" style="display:none;">
+            <label class="switch-row" id="pdIpBanRow" style="display:none;">
+              <input type="checkbox" id="pdBanIp"> Bannir aussi l'IP de ce joueur
+            </label>
+
+            <button class="action primary" type="submit">Exécuter</button>
+          </form>
+        </div>
       </div>
 
       <div class="panel" data-manager-only>
@@ -105,43 +144,6 @@
           <button class="action" type="submit">Envoyer</button>
         </form>
         <div class="preset-row" id="presetRow"></div>
-      </div>
-
-      <div class="panel" data-admin-only>
-        <h2>Commandes Admin <span class="muted-hint">(PalDefender)</span></h2>
-        <p class="empty" id="pdCommandsUnavailable" style="display:none;">API PalDefender non configurée — configure-la depuis l'onglet Plugins.</p>
-        <form class="account-form" id="pdCommandForm">
-          <select id="pdCommand">
-            <option value="kick">Kick un joueur</option>
-            <option value="ban">Bannir un joueur</option>
-            <option value="unban">Débannir un joueur</option>
-            <option value="banip">Bannir une IP</option>
-            <option value="unbanip">Débannir une IP</option>
-            <option value="message">Message à un joueur</option>
-            <option value="broadcast">Annonce (Broadcast)</option>
-            <option value="alert">Alerte</option>
-          </select>
-
-          <input type="text" id="pdTarget" list="pdOnlinePlayers" placeholder="Joueur (nom ou UserId) ou IP">
-          <datalist id="pdOnlinePlayers"></datalist>
-
-          <select id="pdSendType" style="display:none;">
-            <option value="PlayerChat">Chat joueur</option>
-            <option value="PlayerGlobalChat">Chat global</option>
-            <option value="PlayerLogNormal">Log normal</option>
-            <option value="PlayerLogImportant">Log important</option>
-            <option value="PlayerLogVeryImportant">Log très important</option>
-          </select>
-
-          <input type="text" id="pdMessage" placeholder="Message" style="display:none;">
-          <input type="text" id="pdReason" placeholder="Raison (optionnel)" style="display:none;">
-          <input type="text" id="pdSender" placeholder="Nom de l'expéditeur (optionnel)" style="display:none;">
-          <label class="switch-row" id="pdIpBanRow" style="display:none;">
-            <input type="checkbox" id="pdBanIp"> Bannir aussi l'IP de ce joueur
-          </label>
-
-          <button class="action primary" type="submit">Exécuter</button>
-        </form>
       </div>
     </section>
 
@@ -170,6 +172,11 @@
         <div class="panel">
           <h2>Journal d'activité</h2>
           <ul class="backup-list" id="activityList"></ul>
+          <div class="btn-row" id="activityPager" style="justify-content:space-between; align-items:center; margin-top:10px; display:none;">
+            <button class="action" id="activityPrev" type="button">← Précédent</button>
+            <span class="muted-hint" id="activityPageInfo" style="display:block;"></span>
+            <button class="action" id="activityNext" type="button">Suivant →</button>
+          </div>
         </div>
       </div>
 
@@ -177,17 +184,6 @@
         <h2>Joueurs bannis</h2>
         <ul class="backup-list" id="bansList"></ul>
         <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
-      </div>
-
-      <div class="panel" data-manager-only>
-        <h2>Console serveur</h2>
-        <div class="btn-row" style="flex-wrap:wrap; align-items:center;">
-          <button class="action" id="consoleRefreshBtn" type="button">Rafraîchir</button>
-          <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="consoleAutoRefresh"> Auto (5 s)</label>
-          <input type="text" id="consoleFilter" placeholder="Filtrer les lignes…" style="flex:1; min-width:160px;">
-          <button class="action primary" id="consoleEnableBtn" type="button" style="display:none;">Activer la console</button>
-        </div>
-        <pre class="setup-log" id="consoleLog" style="margin-top:10px;">Clique sur "Rafraîchir" pour charger la console.</pre>
       </div>
     </section>
 
@@ -294,8 +290,8 @@
         <p class="empty" id="rsSummary" style="margin-top:10px;"></p>
       </div>
 
-      <div class="panel" data-admin-only style="margin-bottom:22px;">
-        <form class="account-form" id="setupForm" style="display:none;">
+      <div class="panel" data-admin-only id="setupFormPanel" style="margin-bottom:22px; display:none;">
+        <form class="account-form" id="setupForm">
           <input type="text" id="setupInstallDir" placeholder="Dossier d'installation (ex: D:\PalworldServer)">
           <input type="text" id="setupSteamCmdDir" placeholder="Dossier SteamCMD">
           <input type="text" id="setupNssmPath" placeholder="Chemin nssm.exe">

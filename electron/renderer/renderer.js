@@ -90,7 +90,7 @@ document.querySelectorAll('.browse-btn').forEach(btn => {
 
 window.api.onLog(line => {
   const log = $('log');
-  log.style.display = 'block';
+  $('logPanel').style.display = 'block';
   log.textContent += line + '\n';
   log.scrollTop = log.scrollHeight;
 });
@@ -110,7 +110,7 @@ $('setupForm').addEventListener('submit', async (e) => {
     backupDir: $('backupDir').value.trim()
   };
   $('installBtn').disabled = true;
-  $('log').style.display = 'block';
+  $('logPanel').style.display = 'block';
   $('log').textContent = '';
   fitWindow();
   const r = await window.api.install(body);
@@ -139,7 +139,7 @@ $('openDashBtn').addEventListener('click', () => window.api.openDashboard());
 async function runServiceAction(btnId, apiFn, okMsg) {
   const btn = $(btnId);
   btn.disabled = true;
-  $('log').style.display = 'block';
+  $('logPanel').style.display = 'block';
   $('log').textContent = '';
   fitWindow();
   const r = await apiFn();
