@@ -264,7 +264,7 @@
     'Désinstaller': 'Uninstall',
     'Open source (MIT). Ajoute un dossier': 'Open source (MIT). Adds a',
     'avec quelques mods d\'exemple ; les tiens peuvent être ajoutés par la suite directement dans ce dossier.': 'folder with a few example mods; yours can be added later directly into that folder.',
-    '⚠️ Binaire fermé (code non public) fourni par ses auteurs — installé directement depuis leur release GitHub officielle, jamais modifié par ce dashboard.': '⚠️ Closed binary (non-public code) provided by its authors — installed directly from their official GitHub release, never modified by this dashboard.',
+    '⚠️ Binaire fermé (code non public) fourni par ses auteurs — installé directement depuis leur release GitHub officielle, jamais modifié par ce dashboard. Installe la dernière version préversion (bêta 1.8.0) : c\'est la première à exposer l\'API des Commandes Admin.': '⚠️ Closed binary (non-public code) provided by its authors — installed directly from their official GitHub release, never modified by this dashboard. Installs the latest pre-release (1.8.0 beta): it is the first to expose the Admin Commands API.',
     "API de commandes (pour l'onglet Tableau de bord)": 'Command API (for the Dashboard tab)',
     'Enregistrer': 'Save',
     'Importer automatiquement': 'Import automatically',
