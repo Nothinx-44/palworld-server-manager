@@ -310,6 +310,25 @@
     'Seul un admin peut créer un compte admin.': 'Only an admin can create an admin account.',
     'Mot de passe : 6 caractères minimum.': 'Password: 6 characters minimum.',
     'Échec de la création du compte.': 'Failed to create the account.',
+    // Launcher Electron
+    "L'application ne tourne pas avec les droits administrateur : la création des services Windows et de la règle de pare-feu échouera. Ferme, fais un clic droit sur l'.exe → « Exécuter en tant qu'administrateur ».":
+      "The application is not running with administrator rights: creating Windows services and the firewall rule will fail. Close it, right-click the .exe → \"Run as administrator\".",
+    'État de l\'installation': 'Installation status',
+    'Installer / configurer le serveur': 'Install / configure the server',
+    'Télécharge SteamCMD + le serveur Palworld (12–15 Go), configure': 'Downloads SteamCMD + Palworld server (12–15 GB), configures',
+    ', crée les services Windows (serveur + dashboard) et la règle de pare-feu. NSSM est téléchargé automatiquement.': ', creates Windows services (server + dashboard) and the firewall rule. NSSM is downloaded automatically.',
+    'auto si laissé vide': 'auto if left empty',
+    'Lancer l\'installation': 'Start installation',
+    'Lancer le dashboard': 'Launch the dashboard',
+    'Journal d\'installation': 'Installation log',
+    'Services Windows': 'Windows services',
+    'Recrée ou supprime les services (serveur + dashboard) sans re-télécharger. La désinstallation ne touche ni au serveur ni aux sauvegardes.': 'Recreates or removes services (server + dashboard) without re-downloading. Uninstallation does not touch the server or backups.',
+    "À partager avec tes amis (après redirection de port sur ta box) :": "Share with your friends (after port forwarding on your router):",
+    'Gestion des utilisateurs': 'User management',
+    '(Ré)installer': '(Re)install',
+    'Installation terminée': 'Installation complete',
+    'Échec de l\'installation': 'Installation failed',
+    'Pense à': 'Remember to',
     // Divers
     'télécharger sur GitHub': 'download on GitHub'
   };

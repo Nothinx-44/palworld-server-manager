@@ -1,5 +1,15 @@
 const $ = id => document.getElementById(id);
 
+// Sélecteur de langue (i18n.js gère le reste automatiquement)
+const langToggle = document.getElementById('langToggle');
+const currentLang = localStorage.getItem('lang') || ((navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+langToggle.textContent = currentLang === 'fr' ? '🌐 FR' : '🌐 EN';
+langToggle.addEventListener('click', () => {
+  const next = currentLang === 'fr' ? 'en' : 'fr';
+  localStorage.setItem('lang', next);
+  location.reload();
+});
+
 const toast = $('toast');
 function showToast(msg) {
   toast.textContent = msg;

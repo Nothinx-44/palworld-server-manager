@@ -7,6 +7,7 @@
 <link rel="icon" type="image/png" href="../../public/logo.png">
 <!-- Réutilise la CSS du dashboard web (electron/renderer -> ../../public) -->
 <link rel="stylesheet" href="../../public/style.css">
+<script src="../../public/i18n.js" defer></script>
 <style>
   /* La fenêtre s'ajuste au contenu (pas de scroll) ; le scroll vertical ne réapparaît qu'en
      secours si l'écran est trop petit pour tout afficher. */
@@ -62,7 +63,10 @@
   <div class="wrap" id="wrap">
     <header class="top">
       <h1><img src="../../public/logo.png" alt="" class="brand-logo"> Pal Launcher Server Manager <span class="role-badge">Assistant</span></h1>
-      <span class="pill" id="dashPill">Dashboard : —</span>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button id="langToggle" type="button" style="border:none; background:none; cursor:pointer; font-size:1.2rem; padding:0;">🌐 FR</button>
+        <span class="pill" id="dashPill">Dashboard : —</span>
+      </div>
     </header>
 
     <p class="warning" id="elevatedWarning" style="display:none;">
