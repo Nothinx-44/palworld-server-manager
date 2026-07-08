@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pal Launcher Server Manager - Free Palworld Dashboard</title>
     <meta name="description" content="Free open-source dashboard to manage your Palworld server. One-click install, no subscription, fully self-hosted. Control players, backups, admin commands from any browser.">
-    <meta name="og:image" content="https://raw.githubusercontent.com/Nothinx-44/pal-launcher-server-manager/main/public/logo.png">
+    <meta name="og:image" content="img/logo.png">
     <style>
         * {
             margin: 0;
@@ -24,6 +24,24 @@
             margin: 0 auto;
             padding: 0 20px;
         }
+        .lang-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(0,212,255,0.4);
+            color: #00d4ff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+        }
+        .lang-toggle:hover {
+            background: rgba(0,212,255,0.15);
+        }
         header {
             padding: 60px 0;
             text-align: center;
@@ -32,12 +50,14 @@
             width: 80px;
             height: 80px;
             margin: 0 auto 30px;
-            background: linear-gradient(135deg, #00d4ff, #0099ff);
-            border-radius: 16px;
+            background: transparent;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
+        }
+        .logo img {
+            width: 80px;
+            height: 80px;
         }
         h1 {
             font-size: 3.5em;
@@ -197,33 +217,36 @@
             .btn { width: 100%; }
             .features { gap: 30px; }
             .comparison { overflow-x: auto; }
+            .lang-toggle { top: 10px; right: 10px; }
         }
     </style>
 </head>
 <body>
+    <button class="lang-toggle" id="langToggle">FR</button>
+
     <header>
         <div class="container">
-            <div class="logo" style="background: transparent; display: flex; align-items: center; justify-content: center;">
-                <img src="img/logo.png" alt="Pal Launcher" style="width: 80px; height: 80px;">
+            <div class="logo">
+                <img src="img/logo.png" alt="Pal Launcher">
             </div>
             <h1>Pal Launcher Server Manager</h1>
-            <p class="tagline">The free, open-source dashboard to run your Palworld server like a pro. No hosting required. No subscription. 100% self-hosted.</p>
+            <p class="tagline" data-en="The free, open-source dashboard to run your Palworld server like a pro. No hosting required. No subscription. 100% self-hosted." data-fr="Le tableau de bord gratuit et open-source pour gérer ton serveur Palworld comme un pro. Pas d'hébergement requis. Pas d'abonnement. 100% auto-hébergé.">The free, open-source dashboard to run your Palworld server like a pro. No hosting required. No subscription. 100% self-hosted.</p>
             <div class="cta-buttons">
-                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/releases" class="btn btn-primary">Download Now</a>
-                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager" class="btn btn-secondary">View on GitHub</a>
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/releases" class="btn btn-primary" data-en="Download Now" data-fr="Télécharger">Download Now</a>
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager" class="btn btn-secondary" data-en="View on GitHub" data-fr="Voir sur GitHub">View on GitHub</a>
             </div>
             <div class="stats">
                 <div class="stat">
                     <div class="stat-number">100%</div>
-                    <div class="stat-label">Free & Open Source</div>
+                    <div class="stat-label" data-en="Free & Open Source" data-fr="Gratuit & Open Source">Free & Open Source</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-number">5 min</div>
-                    <div class="stat-label">One-Click Setup</div>
+                    <div class="stat-number" data-en="5 min" data-fr="5 min">5 min</div>
+                    <div class="stat-label" data-en="One-Click Setup" data-fr="Installation en 1 clic">One-Click Setup</div>
                 </div>
                 <div class="stat">
                     <div class="stat-number">∞</div>
-                    <div class="stat-label">Full Control</div>
+                    <div class="stat-label" data-en="Full Control" data-fr="Contrôle Total">Full Control</div>
                 </div>
             </div>
         </div>
@@ -235,105 +258,105 @@
             <section class="features">
                 <div class="feature">
                     <div class="feature-icon">⚡</div>
-                    <h3>Easy Install</h3>
-                    <p>One-click .exe installer. No command line needed. Setup wizard handles everything.</p>
+                    <h3 data-en="Easy Install" data-fr="Installation Facile">Easy Install</h3>
+                    <p data-en="One-click .exe installer. No command line needed. Setup wizard handles everything." data-fr="Installateur .exe en un clic. Aucune ligne de commande. L'assistant s'occupe de tout.">One-click .exe installer. No command line needed. Setup wizard handles everything.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">💾</div>
-                    <h3>Full Backups</h3>
-                    <p>Manual + automatic scheduled backups. Restore anytime with one click.</p>
+                    <h3 data-en="Full Backups" data-fr="Sauvegardes Complètes">Full Backups</h3>
+                    <p data-en="Manual + automatic scheduled backups. Restore anytime with one click." data-fr="Sauvegardes manuelles + automatiques programmées. Restauration en un clic à tout moment.">Manual + automatic scheduled backups. Restore anytime with one click.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🔨</div>
-                    <h3>Admin Commands</h3>
-                    <p>Kick, ban, annonce, modify world settings. Everything from the web dashboard.</p>
+                    <h3 data-en="Admin Commands" data-fr="Commandes Admin">Admin Commands</h3>
+                    <p data-en="Kick, ban, annonce, modify world settings. Everything from the web dashboard." data-fr="Kick, ban, annonce, modification des réglages du monde. Tout depuis le dashboard web.">Kick, ban, annonce, modify world settings. Everything from the web dashboard.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">👥</div>
-                    <h3>Player Management</h3>
-                    <p>See who's online, player history, activity log. Real-time player map.</p>
+                    <h3 data-en="Player Management" data-fr="Gestion des Joueurs">Player Management</h3>
+                    <p data-en="See who's online, player history, activity log. Real-time player map." data-fr="Voir qui est en ligne, historique des joueurs, journal d'activité. Carte des joueurs en temps réel.">See who's online, player history, activity log. Real-time player map.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🤖</div>
-                    <h3>Discord Integration</h3>
-                    <p>Auto-notifications for crashes, backups, player joins. Stay informed.</p>
+                    <h3 data-en="Discord Integration" data-fr="Intégration Discord">Discord Integration</h3>
+                    <p data-en="Auto-notifications for crashes, backups, player joins. Stay informed." data-fr="Notifications automatiques pour crashs, sauvegardes, connexions joueurs. Reste informé.">Auto-notifications for crashes, backups, player joins. Stay informed.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🔓</div>
-                    <h3>Open Source</h3>
-                    <p>MIT licensed. Audit the code yourself. No telemetry. 100% transparent.</p>
+                    <h3 data-en="Open Source" data-fr="Open Source">Open Source</h3>
+                    <p data-en="MIT licensed. Audit the code yourself. No telemetry. 100% transparent." data-fr="Licence MIT. Audite le code toi-même. Aucune télémétrie. 100% transparent.">MIT licensed. Audit the code yourself. No telemetry. 100% transparent.</p>
                 </div>
             </section>
 
             <!-- Comparison -->
             <section class="comparison">
-                <h2>Why Choose This?</h2>
+                <h2 data-en="Why Choose This?" data-fr="Pourquoi Choisir Ça ?">Why Choose This?</h2>
                 <table>
                     <thead>
                         <tr>
-                            <th>Feature</th>
-                            <th>This</th>
+                            <th data-en="Feature" data-fr="Fonctionnalité">Feature</th>
+                            <th data-en="This" data-fr="Ceci">This</th>
                             <th>Nitrado</th>
                             <th>G-Portal</th>
-                            <th>Manual Setup</th>
+                            <th data-en="Manual Setup" data-fr="Installation Manuelle">Manual Setup</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><strong>Cost</strong></td>
-                            <td><span class="check">✓ Free</span></td>
+                            <td><strong data-en="Cost" data-fr="Coût">Cost</strong></td>
+                            <td><span class="check" data-en="✓ Free" data-fr="✓ Gratuit">✓ Free</span></td>
                             <td><span class="cross">✗ $10-40/mo</span></td>
                             <td><span class="cross">✗ $15-30/mo</span></td>
-                            <td><span class="check">✓ Free</span></td>
+                            <td><span class="check" data-en="✓ Free" data-fr="✓ Gratuit">✓ Free</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Web Dashboard</strong></td>
-                            <td><span class="check">✓ Yes</span></td>
-                            <td><span class="check">✓ Yes</span></td>
-                            <td><span class="check">✓ Yes</span></td>
-                            <td><span class="cross">✗ No</span></td>
+                            <td><strong data-en="Web Dashboard" data-fr="Dashboard Web">Web Dashboard</strong></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
+                            <td><span class="cross" data-en="✗ No" data-fr="✗ Non">✗ No</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Open Source</strong></td>
+                            <td><strong data-en="Open Source" data-fr="Open Source">Open Source</strong></td>
                             <td><span class="check">✓ MIT</span></td>
-                            <td><span class="cross">✗ No</span></td>
-                            <td><span class="cross">✗ No</span></td>
-                            <td><span class="check">✓ You code</span></td>
+                            <td><span class="cross" data-en="✗ No" data-fr="✗ Non">✗ No</span></td>
+                            <td><span class="cross" data-en="✗ No" data-fr="✗ Non">✗ No</span></td>
+                            <td><span class="check" data-en="✓ You code" data-fr="✓ Tu codes">✓ You code</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Setup Difficulty</strong></td>
-                            <td><span class="check">✓ 1-click</span></td>
-                            <td><span class="check">✓ Auto</span></td>
-                            <td><span class="check">✓ Auto</span></td>
-                            <td><span class="cross">✗ Manual</span></td>
+                            <td><strong data-en="Setup Difficulty" data-fr="Difficulté d'installation">Setup Difficulty</strong></td>
+                            <td><span class="check" data-en="✓ 1-click" data-fr="✓ 1 clic">✓ 1-click</span></td>
+                            <td><span class="check" data-en="✓ Auto" data-fr="✓ Auto">✓ Auto</span></td>
+                            <td><span class="check" data-en="✓ Auto" data-fr="✓ Auto">✓ Auto</span></td>
+                            <td><span class="cross" data-en="✗ Manual" data-fr="✗ Manuel">✗ Manual</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Mods (UE4SS)</strong></td>
-                            <td><span class="check">✓ 1-click</span></td>
-                            <td><span class="cross">✗ Extra $</span></td>
-                            <td><span class="cross">✗ Extra $</span></td>
-                            <td><span class="check">✓ Manual</span></td>
+                            <td><strong data-en="Mods (UE4SS)" data-fr="Mods (UE4SS)">Mods (UE4SS)</strong></td>
+                            <td><span class="check" data-en="✓ 1-click" data-fr="✓ 1 clic">✓ 1-click</span></td>
+                            <td><span class="cross" data-en="✗ Extra $" data-fr="✗ Option payante">✗ Extra $</span></td>
+                            <td><span class="cross" data-en="✗ Extra $" data-fr="✗ Option payante">✗ Extra $</span></td>
+                            <td><span class="check" data-en="✓ Manual" data-fr="✓ Manuel">✓ Manual</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Self-Hosted</strong></td>
-                            <td><span class="check">✓ Yes</span></td>
-                            <td><span class="cross">✗ Their server</span></td>
-                            <td><span class="cross">✗ Their server</span></td>
-                            <td><span class="check">✓ Yes</span></td>
+                            <td><strong data-en="Self-Hosted" data-fr="Auto-hébergé">Self-Hosted</strong></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
+                            <td><span class="cross" data-en="✗ Their server" data-fr="✗ Leur serveur">✗ Their server</span></td>
+                            <td><span class="cross" data-en="✗ Their server" data-fr="✗ Leur serveur">✗ Their server</span></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Subscription</strong></td>
-                            <td><span class="check">✓ None</span></td>
-                            <td><span class="cross">✗ Required</span></td>
-                            <td><span class="cross">✗ Required</span></td>
-                            <td><span class="check">✓ None</span></td>
+                            <td><strong data-en="Subscription" data-fr="Abonnement">Subscription</strong></td>
+                            <td><span class="check" data-en="✓ None" data-fr="✓ Aucun">✓ None</span></td>
+                            <td><span class="cross" data-en="✗ Required" data-fr="✗ Requis">✗ Required</span></td>
+                            <td><span class="cross" data-en="✗ Required" data-fr="✗ Requis">✗ Required</span></td>
+                            <td><span class="check" data-en="✓ None" data-fr="✓ Aucun">✓ None</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Share Dashboard</strong></td>
-                            <td><span class="check">✓ Your IP</span></td>
-                            <td><span class="check">✓ Yes</span></td>
-                            <td><span class="check">✓ Yes</span></td>
-                            <td><span class="cross">✗ Files only</span></td>
+                            <td><strong data-en="Share Dashboard" data-fr="Partage du Dashboard">Share Dashboard</strong></td>
+                            <td><span class="check" data-en="✓ Your IP" data-fr="✓ Ton IP">✓ Your IP</span></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
+                            <td><span class="check" data-en="✓ Yes" data-fr="✓ Oui">✓ Yes</span></td>
+                            <td><span class="cross" data-en="✗ Files only" data-fr="✗ Fichiers seulement">✗ Files only</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -341,8 +364,8 @@
 
             <!-- Highlight -->
             <div class="highlight">
-                <h3>🎯 Perfect For:</h3>
-                <p>
+                <h3 data-en="🎯 Perfect For:" data-fr="🎯 Parfait Pour :">🎯 Perfect For:</h3>
+                <p data-en="<strong>Friends who want a shared server</strong> without paying monthly hosting fees.<br><strong>Server admins</strong> who want full control over their data (self-hosted).<br><strong>Developers</strong> who want to extend functionality (open source, REST API).<br><strong>Budget-conscious gamers</strong> who already have a PC running 24/7." data-fr="<strong>Les groupes d'amis</strong> qui veulent un serveur partagé sans payer d'abonnement mensuel.<br><strong>Les admins de serveur</strong> qui veulent garder le contrôle total de leurs données (auto-hébergé).<br><strong>Les développeurs</strong> qui veulent étendre les fonctionnalités (open source, API REST).<br><strong>Les joueurs économes</strong> qui ont déjà un PC allumé 24/7." data-html="true">
                     <strong>Friends who want a shared server</strong> without paying monthly hosting fees.<br>
                     <strong>Server admins</strong> who want full control over their data (self-hosted).<br>
                     <strong>Developers</strong> who want to extend functionality (open source, REST API).<br>
@@ -352,31 +375,31 @@
 
             <!-- FAQ -->
             <section style="margin: 80px 0;">
-                <h2 style="text-align: center; font-size: 2.5em; margin-bottom: 40px; color: #00d4ff;">Frequently Asked</h2>
+                <h2 style="text-align: center; font-size: 2.5em; margin-bottom: 40px; color: #00d4ff;" data-en="Frequently Asked" data-fr="Questions Fréquentes">Frequently Asked</h2>
                 <div style="max-width: 700px; margin: 0 auto; display: grid; gap: 30px;">
                     <div>
-                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Does Palworld ban you for this?</h4>
-                        <p style="color: #aaa;">No. This is an admin tool like editing config files. Palworld's REST API is intentionally public.</p>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;" data-en="Does Palworld ban you for this?" data-fr="Est-ce que Palworld bannit pour ça ?">Does Palworld ban you for this?</h4>
+                        <p style="color: #aaa;" data-en="No. This is an admin tool like editing config files. Palworld's REST API is intentionally public." data-fr="Non. C'est un outil d'admin, comme éditer des fichiers de config. L'API REST de Palworld est volontairement publique.">No. This is an admin tool like editing config files. Palworld's REST API is intentionally public.</p>
                     </div>
                     <div>
-                        <h4 style="color: #00d4ff; margin-bottom: 10px;">What happens if my PC crashes?</h4>
-                        <p style="color: #aaa;">The server is a Windows service. It auto-restarts on reboot without manual intervention.</p>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;" data-en="What happens if my PC crashes?" data-fr="Que se passe-t-il si mon PC plante ?">What happens if my PC crashes?</h4>
+                        <p style="color: #aaa;" data-en="The server is a Windows service. It auto-restarts on reboot without manual intervention." data-fr="Le serveur est un service Windows. Il redémarre automatiquement au reboot, sans intervention manuelle.">The server is a Windows service. It auto-restarts on reboot without manual intervention.</p>
                     </div>
                     <div>
-                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Do I need technical knowledge?</h4>
-                        <p style="color: #aaa;">No. One-click installer guides you step-by-step. No command line needed.</p>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;" data-en="Do I need technical knowledge?" data-fr="Faut-il des connaissances techniques ?">Do I need technical knowledge?</h4>
+                        <p style="color: #aaa;" data-en="No. One-click installer guides you step-by-step. No command line needed." data-fr="Non. L'installateur en un clic te guide étape par étape. Aucune ligne de commande nécessaire.">No. One-click installer guides you step-by-step. No command line needed.</p>
                     </div>
                     <div>
-                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Is it really free?</h4>
-                        <p style="color: #aaa;">100% free and open source (MIT license). Your only cost is electricity to run your PC.</p>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;" data-en="Is it really free?" data-fr="C'est vraiment gratuit ?">Is it really free?</h4>
+                        <p style="color: #aaa;" data-en="100% free and open source (MIT license). Your only cost is electricity to run your PC." data-fr="100% gratuit et open source (licence MIT). Ton seul coût est l'électricité pour faire tourner ton PC.">100% free and open source (MIT license). Your only cost is electricity to run your PC.</p>
                     </div>
                     <div>
-                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Can I move my server later?</h4>
-                        <p style="color: #aaa;">Yes. Backups are standard Palworld saves—compatible with any server.</p>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;" data-en="Can I move my server later?" data-fr="Puis-je déplacer mon serveur plus tard ?">Can I move my server later?</h4>
+                        <p style="color: #aaa;" data-en="Yes. Backups are standard Palworld saves—compatible with any server." data-fr="Oui. Les sauvegardes sont des saves Palworld standards — compatibles avec n'importe quel serveur.">Yes. Backups are standard Palworld saves—compatible with any server.</p>
                     </div>
                     <div>
-                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Does it track my data?</h4>
-                        <p style="color: #aaa;">No. Zero telemetry. Everything stays on your machine. Fully auditable open source code.</p>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;" data-en="Does it track my data?" data-fr="Est-ce que ça collecte mes données ?">Does it track my data?</h4>
+                        <p style="color: #aaa;" data-en="No. Zero telemetry. Everything stays on your machine. Fully auditable open source code." data-fr="Non. Zéro télémétrie. Tout reste sur ta machine. Code open source entièrement auditable.">No. Zero telemetry. Everything stays on your machine. Fully auditable open source code.</p>
                     </div>
                 </div>
             </section>
@@ -385,13 +408,41 @@
 
     <footer>
         <div class="container">
-            <p>💖 Made with passion for Palworld gamers</p>
+            <p data-en="💖 Made with passion for Palworld gamers" data-fr="💖 Fait avec passion pour les joueurs de Palworld">💖 Made with passion for Palworld gamers</p>
             <p style="margin-top: 10px; font-size: 0.9em;">
                 <a href="https://github.com/Nothinx-44/pal-launcher-server-manager" style="color: #00d4ff; text-decoration: none;">GitHub</a> •
-                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/issues" style="color: #00d4ff; text-decoration: none;">Report Issues</a> •
-                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/blob/main/LICENSE" style="color: #00d4ff; text-decoration: none;">MIT License</a>
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/issues" style="color: #00d4ff; text-decoration: none;" data-en="Report Issues" data-fr="Signaler un problème">Report Issues</a> •
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/blob/main/LICENSE" style="color: #00d4ff; text-decoration: none;" data-en="MIT License" data-fr="Licence MIT">MIT License</a>
             </p>
         </div>
     </footer>
+
+    <script>
+        (function() {
+            var toggle = document.getElementById('langToggle');
+            var stored = localStorage.getItem('pals_lang');
+            var browserFr = (navigator.language || '').toLowerCase().startsWith('fr');
+            var lang = stored || (browserFr ? 'fr' : 'en');
+
+            function applyLang(l) {
+                document.querySelectorAll('[data-en]').forEach(function(el) {
+                    var text = l === 'fr' ? el.getAttribute('data-fr') : el.getAttribute('data-en');
+                    if (text === null) return;
+                    if (el.getAttribute('data-html') === 'true') el.innerHTML = text;
+                    else el.textContent = text;
+                });
+                document.documentElement.lang = l;
+                toggle.textContent = l === 'fr' ? 'EN' : 'FR';
+            }
+
+            toggle.addEventListener('click', function() {
+                lang = lang === 'fr' ? 'en' : 'fr';
+                localStorage.setItem('pals_lang', lang);
+                applyLang(lang);
+            });
+
+            applyLang(lang);
+        })();
+    </script>
 </body>
 </html>
