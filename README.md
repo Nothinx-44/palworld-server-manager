@@ -1,91 +1,312 @@
-# 🐾 Pal Launcher Server Manager
+<div align="center">
+  <img src="public/logo.png" alt="Pal Launcher Server Manager" width="100" height="100">
+</div>
 
-**The free, unlimited Palworld dedicated server manager for Windows — no command line, no
-config-file editing, no monthly fee.**
+# Pal Launcher Server Manager
 
-[🇫🇷 Version française plus bas](#-version-française) · **[Website / Site](https://nothinx-44.github.io/pal-launcher-server-manager/)**
+> **The free, open-source dashboard to run your Palworld server like a pro. No hosting service required. Install on your PC in 5 minutes.**
 
-Pal Launcher installs the Palworld dedicated server for you, lets you change every world setting
-from a clean web interface, restarts the server if it crashes, takes automatic backups, shows a
-**live map of your players**, sends Discord notifications, and much more.
+[![GitHub stars](https://img.shields.io/github/stars/Nothinx-44/pal-launcher-server-manager?style=flat-square&logo=github)](https://github.com/Nothinx-44/pal-launcher-server-manager)
+[![GitHub downloads](https://img.shields.io/github/downloads/Nothinx-44/pal-launcher-server-manager/total?style=flat-square&logo=github)](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Windows](https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows)](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
 
-**100% free. No server limit. No Pro tier.**
+<div align="center">
 
-## ⬇️ Download
+[🇬🇧 English](#english) • [🇫🇷 Français](#français)
 
-**[Latest release](../../releases/latest)** — `PalLauncherServerManager-Setup.exe`
-
-1. Download and double-click the installer. Windows asks for elevation (UAC) automatically —
-   required to create the Windows services and the firewall rule.
-2. Follow the setup wizard (install folder is configurable, Desktop/Start-menu shortcuts created).
-3. Launch **“Pal Launcher Server Manager”** from the Start menu: it installs SteamCMD + the
-   Palworld server, configures everything, and gives you a web dashboard to manage your server —
-   accessible from any browser, even remotely.
-
-> **Windows SmartScreen warning?** The installer is not code-signed yet. Click
-> *More info* → *Run anyway*. The full source is auditable behavior — nothing leaves your machine.
-
-## ✨ Features
-
-- **Guided server installation** — zero prerequisites, everything is downloaded for you
-- **Web dashboard** usable from any browser on your network or remotely (friends can have
-  their own read-only or moderator accounts)
-- **Live map** — see every player's position in real time
-- Start / stop / restart, with schedulable recurring restarts (with in-game countdown warnings)
-- Manual & scheduled backups (multiple times per day, per-weekday), one-click restore, zip import
-- Edit world settings (`PalWorldSettings.ini`) from the browser
-- Connected players, kick/ban, announcements, quick preset messages
-- **Plugin manager** — install UE4SS and PalDefender (anti-cheat) in one click, plus
-  PalDefender admin commands from the dashboard
-- One-click server updates via SteamCMD, with update-available detection
-- Multiple accounts with roles (admin / user / read-only)
-- Discord notifications, activity log, player history & playtime, disk-space alert,
-  anti-crash watchdog, server console viewer
-- **Bilingual UI** — English & French, auto-detected
-
-## 🔒 Security
-
-- The admin password you set at install time is also the Palworld REST API password — it is
-  never exposed publicly (the game API stays local to your machine).
-- Every sensitive action is checked server-side against the account's role.
+</div>
 
 ---
 
-## 🇫🇷 Version française
+## English
 
-**Le gestionnaire de serveur dédié Palworld gratuit et illimité pour Windows — pas de ligne de
-commande, pas d'édition de fichiers de config, pas d'abonnement.**
+### Why Pal Launcher Server Manager?
 
-Pal Launcher installe le serveur Palworld pour toi, te laisse changer les réglages depuis une
-interface web claire, redémarre le serveur s'il plante, prend des sauvegardes automatiques,
-affiche une **carte en direct des joueurs**, envoie des notifications Discord, et bien plus.
+| Feature | This | Nitrado | G-Portal | Self-Hosted (manual) |
+|---------|------|---------|----------|----------------------|
+| **Free** | ✅ | ❌ ($10-40/mo) | ❌ ($15-30/mo) | ✅ |
+| **Web dashboard** | ✅ | ✅ | ✅ | ❌ (files only) |
+| **Admin commands** | ✅ | ✅ | ✅ | ❌ |
+| **Easy install** | ✅ One-click .exe | ✅ Auto | ✅ Auto | ❌ Manual |
+| **Mods (UE4SS)** | ✅ 1-click install | ❌ Extra fee | ❌ Extra fee | ✅ Manual |
+| **Open source** | ✅ MIT | ❌ Proprietary | ❌ Proprietary | ✅ |
+| **No subscription** | ✅ | ❌ | ❌ | ✅ |
+| **Share via web** | ✅ Friends access dashboard | ✅ | ✅ | ❌ Files only |
+| **Cloud backups** | 🔄 Local only | ✅ | ✅ | 🔄 Local only |
 
-**100 % gratuit. Aucune limite de serveurs. Pas de version « Pro ».**
+### 🚀 Get Started in 2 Minutes
 
-### Télécharger
+**Option 1: One-Click Desktop App (Recommended)**
 
-**[Dernière version](../../releases/latest)** — `PalLauncherServerManager-Setup.exe`
+1. [Download `PalLauncherServerManager-Setup.exe`](https://github.com/Nothinx-44/pal-launcher-server-manager/releases) (latest release)
+2. Double-click → Windows asks for admin → follow wizard
+3. Done. Dashboard is live at `http://localhost:3000`
 
-1. Télécharge et double-clique le Setup : Windows demande l'élévation (UAC) automatiquement.
-2. Suis l'assistant d'installation.
-3. Lance **« Pal Launcher Server Manager »** depuis le menu Démarrer : il installe SteamCMD + le
-   serveur Palworld, configure les services, et te donne un dashboard web accessible depuis
-   n'importe quel navigateur, même à distance.
+**Option 2: Manual Install (For Linux enthusiasts)**
 
-### Fonctionnalités
+```bash
+git clone https://github.com/Nothinx-44/pal-launcher-server-manager-source.git
+cd palworld-dashboard
+npm install
+npm run create-user -- you password123 admin
+node server.js
+```
 
-- Installation guidée du serveur (aucun prérequis)
-- Dashboard web accessible à distance, comptes multiples avec rôles (admin / utilisateur / lecture seule)
-- Carte en direct des joueurs
-- Démarrage / arrêt / redémarrage, redémarrages récurrents programmables avec avertissements en jeu
-- Sauvegardes manuelles et planifiées, restauration en un clic, import de zip
-- Édition des réglages du monde depuis le navigateur
-- Kick/ban, annonces, gestionnaire de plugins (UE4SS, PalDefender) et commandes admin PalDefender
-- Mises à jour du serveur en un clic, notifications Discord, historique des joueurs, console serveur,
-  alerte espace disque, watchdog anti-crash
-- Interface bilingue français/anglais (détection automatique)
+Then open `http://localhost:3000` and log in.
+
+### ✨ Features at a Glance
+
+**Server Control**
+- ⚡ Start / Stop / Restart with one click
+- 🔄 Auto-restart if server crashes (watchdog)
+- ⏰ Scheduled restarts with player warnings
+- 💾 Manual + automatic backups (configurable schedule)
+
+**Player Management**
+- 👥 See who's online in real-time
+- 🗺️ Live map with player positions
+- 🔨 Kick / Ban / Unban players
+- 💬 Broadcast messages to all players
+- 📊 Player history & playtime tracking
+
+**Admin Features**
+- 📝 Edit world settings (difficulty, PvP, drop rates) without restarting
+- 🔐 Manage player accounts (admin / user / read-only roles)
+- 📋 Activity log (who did what, when)
+- 🎮 Admin commands (PalDefender integration)
+- 📈 Server metrics (FPS, uptime, players)
+
+**Integrations**
+- 🤖 Discord notifications (crashes, backups, player joins)
+- 🧩 One-click UE4SS & PalDefender plugin install
+- 🔗 Share access via web link (your friends see the dashboard too)
+
+**Developer Friendly**
+- 🔓 Open source (MIT license)
+- 🧪 Full test suite (`npm test`)
+- 📡 REST API for custom tools
+- 🌍 Multi-language (FR/EN)
+
+### 📸 What It Looks Like
+
+**Dashboard Overview**
+- Clean web interface, accessible from any device on your network
+- Real-time player list with kick/ban/message options
+- Live server map showing player locations
+- Server control buttons (Start/Stop/Restart/Backup)
+
+**Admin Console**
+- Configure world settings without shutting down
+- Manage schedules for backups & restarts
+- View complete activity log
+
+**Desktop App (Setup Wizard)**
+- Guides you through server setup
+- Automatically installs SteamCMD + Palworld + Windows services
+- No command line needed
+
+### 🔐 Security Notes
+
+- **Fully self-hosted** — your data never leaves your PC
+- **Web-only access** — friends login via browser, zero client install
+- **No cloud storage** — backups stay on your disk
+- **Open source** — audit the code yourself
+- ⚠️ Use strong passwords & non-standard ports (SmartScreen may warn on first run; it's normal)
+
+### ❓ FAQ
+
+**Q: Does Palworld ban you for using this?**  
+A: No. This is an admin tool, like notepad edits. Palworld's official API is intentionally public.
+
+**Q: What if my PC crashes?**  
+A: The server is a Windows service. It auto-restarts on reboot, and the dashboard reconnects.
+
+**Q: Can I run this on Linux/Mac?**  
+A: Not yet. The desktop app requires Windows (Electron + Node.exe). Web dashboard is OS-agnostic if you manual-install.
+
+**Q: Is there a cost?**  
+A: No. Free & open source. Your only cost is electricity.
+
+**Q: Can I move my server later?**  
+A: Yes. Backups are standard Palworld saves — compatible with any server.
+
+**Q: Do you track anything?**  
+A: No. Zero telemetry. Everything stays on your machine.
+
+### 🎯 Next Steps
+
+1. [Download the latest release](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+2. Run the setup wizard
+3. Create a player account in the web dashboard
+4. Invite your friends with your IP + port
+5. Enjoy your server
+
+### 🐛 Found a Bug?
+
+[Create an issue](https://github.com/Nothinx-44/pal-launcher-server-manager/issues) or submit a PR.
+
+### 📖 Full Documentation
+
+For advanced setup, command-line install, API details, see [DOCUMENTATION.md](DOCUMENTATION.md).
+
+### 📄 License
+
+MIT — use freely, modify, redistribute. See [LICENSE](LICENSE).
 
 ---
 
-*Pal Launcher Server Manager is an independent tool, not affiliated with Pocketpair, Inc.
-“Palworld” is a trademark of its respective owner.*
+<a name="français"></a>
+
+## Français
+
+### Pourquoi Pal Launcher Server Manager ?
+
+| Fonctionnalité | Celui-ci | Nitrado | G-Portal | Manuel (sans outils) |
+|---|---|---|---|---|
+| **Gratuit** | ✅ | ❌ (10-40€/mois) | ❌ (15-30€/mois) | ✅ |
+| **Dashboard web** | ✅ | ✅ | ✅ | ❌ (fichiers only) |
+| **Commandes admin** | ✅ | ✅ | ✅ | ❌ |
+| **Installation facile** | ✅ Un click .exe | ✅ Auto | ✅ Auto | ❌ Manuel |
+| **Mods (UE4SS)** | ✅ 1 click install | ❌ Option payante | ❌ Option payante | ✅ Manuel |
+| **Open source** | ✅ MIT | ❌ Propriétaire | ❌ Propriétaire | ✅ |
+| **Pas d'abonnement** | ✅ | ❌ | ❌ | ✅ |
+| **Accès web amis** | ✅ Ils voient le dashboard | ✅ | ✅ | ❌ Fichiers only |
+| **Sauvegardes cloud** | 🔄 Local uniquement | ✅ | ✅ | 🔄 Local uniquement |
+
+### 🚀 Démarrage en 2 Minutes
+
+**Option 1 : Application Desktop (Recommandé)**
+
+1. [Télécharge `PalLauncherServerManager-Setup.exe`](https://github.com/Nothinx-44/pal-launcher-server-manager/releases) (dernière release)
+2. Double-clic → Windows demande admin → suis l'assistant
+3. Voilà. Le dashboard est à `http://localhost:3000`
+
+**Option 2 : Installation Manuelle (Ligne de commande)**
+
+```bash
+git clone https://github.com/Nothinx-44/pal-launcher-server-manager-source.git
+cd palworld-dashboard
+npm install
+npm run create-user -- toi motdepasse123 admin
+node server.js
+```
+
+Puis ouvre `http://localhost:3000` et connecte-toi.
+
+### ✨ Fonctionnalités
+
+**Contrôle du Serveur**
+- ⚡ Démarrer / Arrêter / Redémarrer en un clic
+- 🔄 Redémarrage auto si crash (watchdog)
+- ⏰ Redémarrages programmés avec avertissement aux joueurs
+- 💾 Sauvegardes manuelles + automatiques (planning configurable)
+
+**Gestion des Joueurs**
+- 👥 Voir qui est en ligne en temps réel
+- 🗺️ Carte en direct avec positions des joueurs
+- 🔨 Kick / Ban / Unban
+- 💬 Annonces à tous les joueurs
+- 📊 Historique & durée de jeu
+
+**Admin**
+- 📝 Modifier réglages du monde (difficulté, PvP, taux) sans redémarrage
+- 🔐 Gérer comptes (admin / user / lecture seule)
+- 📋 Journal d'activité complet
+- 🎮 Commandes admin (intégration PalDefender)
+- 📈 Métriques serveur (FPS, uptime, joueurs)
+
+**Intégrations**
+- 🤖 Notifications Discord (crashes, sauvegardes, connexions)
+- 🧩 Installation 1-clic UE4SS & PalDefender
+- 🔗 Partage accès via lien web (tes amis voient le dashboard aussi)
+
+**Pour Devs**
+- 🔓 Open source (MIT)
+- 🧪 Suite de tests complète (`npm test`)
+- 📡 API REST pour outils custom
+- 🌍 Multilingue (FR/EN)
+
+### 📸 À Quoi Ça Ressemble
+
+**Tableau de Bord**
+- Interface web propre, accessible de n'importe quel appareil sur ton réseau
+- Liste des joueurs en direct (kick/ban/message)
+- Carte en direct avec positions des joueurs
+- Boutons de contrôle (Démarrer/Arrêter/Redémarrer/Sauvegarder)
+
+**Console Admin**
+- Configure les réglages du monde sans redémarrage
+- Gère les plannings de sauvegardes & redémarrages
+- Voir le journal d'activité complet
+
+**Application Desktop (Assistant)**
+- Te guide à travers la mise en place
+- Installe automatiquement SteamCMD + Palworld + services Windows
+- Aucune ligne de commande nécessaire
+
+### 🔐 Sécurité
+
+- **Entièrement auto-hébergé** — tes données ne quittent pas ton PC
+- **Accès web uniquement** — tes amis se connectent par navigateur, zéro installation
+- **Pas de cloud** — sauvegardes restent sur ton disque
+- **Open source** — audite le code toi-même
+- ⚠️ Utilise des mots de passe forts & ports non standard (SmartScreen peut avertir au 1er lancement ; c'est normal)
+
+### ❓ FAQ
+
+**Q : Palworld te bannit pour ça ?**  
+A : Non. C'est un outil admin, comme éditer des fichiers. L'API officielle de Palworld est volontairement publique.
+
+**Q : Si mon PC crash ?**  
+A : Le serveur est un service Windows. Il redémarre tout seul au reboot.
+
+**Q : Ça marche sur Linux/Mac ?**  
+A : Pas encore. L'app desktop demande Windows. Le dashboard web est agnostique si tu l'installes manuellement.
+
+**Q : C'est payant ?**  
+A : Non. Gratuit & open source. Seul coût : l'électricité.
+
+**Q : Je peux déplacer mon serveur plus tard ?**  
+A : Oui. Les sauvegardes sont standard Palworld — compatibles partout.
+
+**Q : Vous tracez quelque chose ?**  
+A : Non. Zéro télémétrie. Tout reste sur ta machine.
+
+### 🎯 Prochaines Étapes
+
+1. [Télécharge la dernière release](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+2. Lance l'assistant de configuration
+3. Crée un compte joueur dans le dashboard
+4. Invite tes amis avec ton IP + port
+5. Profite de ton serveur
+
+### 🐛 Bug trouvé ?
+
+[Crée une issue](https://github.com/Nothinx-44/pal-launcher-server-manager/issues) ou soumets une PR.
+
+### 📖 Documentation Complète
+
+Pour setup avancé, installation en ligne de commande, détails API, voir [DOCUMENTATION.md](DOCUMENTATION.md).
+
+### 📄 Licence
+
+MIT — utilise librement, modifie, redistribue. Voir [LICENSE](LICENSE).
+
+---
+
+## Advanced / Avancé
+
+<details>
+<summary>Technical details, API reference, development guide (click to expand)</summary>
+
+### Manual Installation
+
+See [DOCUMENTATION.md](DOCUMENTATION.md) for:
+- Step-by-step setup guide
+- API REST reference
+- Development & testing (`npm test`, `npm run mock`)
+- Desktop app build (`npm run dist`)
+- Security considerations
+
+</details>

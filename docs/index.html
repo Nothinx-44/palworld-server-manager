@@ -1,123 +1,397 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pal Launcher — Free Palworld Dedicated Server Manager for Windows</title>
-<meta name="description" content="Free & unlimited Palworld dedicated server manager for Windows. One-click install, web dashboard, live player map, automatic backups, scheduled restarts, plugins (UE4SS, PalDefender), Discord notifications. No monthly fee.">
-<meta property="og:title" content="Pal Launcher — Free Palworld Server Manager">
-<meta property="og:description" content="Install and manage your Palworld dedicated server without the command line. Live map, backups, plugins, remote web dashboard. 100% free, no server limit.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://nothinx-44.github.io/pal-launcher-server-manager/">
-<style>
-  :root {
-    --bg: #0b0e13; --panel: #14181f; --panel2: #1a2029; --text: #e7ebf0; --muted: #8b96a5;
-    --accent: #e2984a; --accent2: #f0b36b; --green: #4ac26b; --border: rgba(139,150,165,.18);
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
-  a { color: var(--accent2); }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
-  header.hero { text-align: center; padding: 72px 20px 48px; background: radial-gradient(ellipse at top, #1a2029 0%, var(--bg) 70%); }
-  .hero h1 { font-size: clamp(1.8rem, 5vw, 3rem); margin-bottom: 12px; }
-  .hero h1 .pal { color: var(--accent); }
-  .hero p.tag { font-size: clamp(1rem, 2.5vw, 1.25rem); color: var(--muted); max-width: 700px; margin: 0 auto 28px; }
-  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
-  .badge { background: var(--panel2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: .85rem; color: var(--muted); }
-  .badge strong { color: var(--green); }
-  .cta { display: inline-block; background: var(--accent); color: #14181f; font-weight: 700; font-size: 1.1rem; padding: 14px 34px; border-radius: 10px; text-decoration: none; transition: transform .15s, background .15s; }
-  .cta:hover { background: var(--accent2); transform: translateY(-2px); }
-  .cta-sub { display: block; margin-top: 10px; font-size: .85rem; color: var(--muted); }
-  section { padding: 48px 0; }
-  h2 { font-size: 1.6rem; margin-bottom: 24px; text-align: center; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-  .feature { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .feature .icon { font-size: 1.6rem; }
-  .feature h3 { font-size: 1.05rem; margin: 8px 0 6px; }
-  .feature p { font-size: .92rem; color: var(--muted); }
-  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  .shots figure { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-  .shots img { width: 100%; display: block; }
-  .shots figcaption { padding: 10px 14px; font-size: .88rem; color: var(--muted); }
-  table.compare { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
-  table.compare th, table.compare td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
-  table.compare th { background: var(--panel2); }
-  table.compare td.yes { color: var(--green); }
-  table.compare td.no { color: var(--muted); }
-  .steps { counter-reset: step; max-width: 640px; margin: 0 auto; }
-  .step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
-  .step::before { counter-increment: step; content: counter(step); flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #14181f; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-  footer { border-top: 1px solid var(--border); padding: 28px 20px; text-align: center; font-size: .82rem; color: var(--muted); }
-  .lang-note { text-align: center; font-size: .9rem; color: var(--muted); margin-top: 14px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pal Launcher Server Manager - Free Palworld Dashboard</title>
+    <meta name="description" content="Free open-source dashboard to manage your Palworld server. One-click install, no subscription, fully self-hosted. Control players, backups, admin commands from any browser.">
+    <meta name="og:image" content="https://raw.githubusercontent.com/Nothinx-44/pal-launcher-server-manager/main/public/logo.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        header {
+            padding: 60px 0;
+            text-align: center;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .tagline {
+            font-size: 1.3em;
+            margin-bottom: 40px;
+            color: #aaa;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cta-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 80px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 14px 32px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            color: #000;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: #00d4ff;
+            border: 2px solid #00d4ff;
+        }
+        .btn-secondary:hover {
+            background: rgba(0, 212, 255, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin: 80px 0;
+            padding: 60px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .feature {
+            text-align: center;
+        }
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        .feature h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        .feature p {
+            color: #aaa;
+        }
+
+        .comparison {
+            margin: 80px 0;
+        }
+        .comparison h2 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            color: #00d4ff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        th {
+            background: rgba(0,212,255,0.1);
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: rgba(0,212,255,0.05);
+        }
+        .check { color: #00ff00; }
+        .cross { color: #ff6b6b; }
+
+        .highlight {
+            background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,153,255,0.1));
+            border-left: 4px solid #00d4ff;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 60px 0;
+        }
+        .highlight h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+        .highlight p {
+            color: #aaa;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 80px;
+            color: #aaa;
+        }
+        .stats {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 60px 0;
+            flex-wrap: wrap;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5em;
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        .stat-label {
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5em; }
+            .tagline { font-size: 1.1em; }
+            .cta-buttons { flex-direction: column; }
+            .btn { width: 100%; }
+            .features { gap: 30px; }
+            .comparison { overflow-x: auto; }
+        }
+    </style>
 </head>
 <body>
+    <header>
+        <div class="container">
+            <div class="logo" style="background: transparent; display: flex; align-items: center; justify-content: center;">
+                <img src="https://raw.githubusercontent.com/Nothinx-44/pal-launcher-server-manager/main/public/logo.png" alt="Pal Launcher" style="width: 80px; height: 80px;">
+            </div>
+            <h1>Pal Launcher Server Manager</h1>
+            <p class="tagline">The free, open-source dashboard to run your Palworld server like a pro. No hosting required. No subscription. 100% self-hosted.</p>
+            <div class="cta-buttons">
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/releases" class="btn btn-primary">Download Now</a>
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager" class="btn btn-secondary">View on GitHub</a>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Free & Open Source</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">5 min</div>
+                    <div class="stat-label">One-Click Setup</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">∞</div>
+                    <div class="stat-label">Full Control</div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-<header class="hero">
-  <h1><span class="pal">Pal Launcher</span> Server Manager</h1>
-  <p class="tag">Install and run your <strong>Palworld dedicated server</strong> on Windows without touching the command line. Web dashboard, live player map, automatic backups — <strong>100% free, no server limit</strong>.</p>
-  <div class="badges">
-    <span class="badge"><strong>Free forever</strong> — no Pro tier</span>
-    <span class="badge">Windows 10 / 11</span>
-    <span class="badge">Palworld 1.0 ready</span>
-    <span class="badge">English + Français</span>
-  </div>
-  <a class="cta" href="https://github.com/Nothinx-44/pal-launcher-server-manager/releases/latest">⬇️ Download for Windows</a>
-  <span class="cta-sub">PalLauncherServerManager-Setup.exe · free · <a href="https://github.com/Nothinx-44/pal-launcher-server-manager">GitHub</a></span>
-</header>
+    <main>
+        <div class="container">
+            <!-- Features Grid -->
+            <section class="features">
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Easy Install</h3>
+                    <p>One-click .exe installer. No command line needed. Setup wizard handles everything.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💾</div>
+                    <h3>Full Backups</h3>
+                    <p>Manual + automatic scheduled backups. Restore anytime with one click.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔨</div>
+                    <h3>Admin Commands</h3>
+                    <p>Kick, ban, annonce, modify world settings. Everything from the web dashboard.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">👥</div>
+                    <h3>Player Management</h3>
+                    <p>See who's online, player history, activity log. Real-time player map.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Discord Integration</h3>
+                    <p>Auto-notifications for crashes, backups, player joins. Stay informed.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔓</div>
+                    <h3>Open Source</h3>
+                    <p>MIT licensed. Audit the code yourself. No telemetry. 100% transparent.</p>
+                </div>
+            </section>
 
-<section class="wrap">
-  <h2>Everything you need to run your server</h2>
-  <div class="features">
-    <div class="feature"><span class="icon">🗺️</span><h3>Live player map</h3><p>See every player's position on the world map in real time, with zoom and pan. No other free manager has this.</p></div>
-    <div class="feature"><span class="icon">🌐</span><h3>Remote web dashboard</h3><p>Manage your server from any browser — phone included. Give friends their own accounts with admin, moderator or read-only roles.</p></div>
-    <div class="feature"><span class="icon">🚀</span><h3>One-click install</h3><p>SteamCMD, the Palworld server, Windows services, firewall rule — everything is set up for you by a guided wizard.</p></div>
-    <div class="feature"><span class="icon">💾</span><h3>Automatic backups</h3><p>Scheduled backups (multiple times a day, per weekday), one-click restore, import of external world zips.</p></div>
-    <div class="feature"><span class="icon">🔁</span><h3>Scheduled restarts</h3><p>Recurring restarts with in-game countdown warnings to players, plus an anti-crash watchdog that revives a frozen server.</p></div>
-    <div class="feature"><span class="icon">⚙️</span><h3>World settings editor</h3><p>Edit every PalWorldSettings.ini option from the browser — with corruption-proof validation.</p></div>
-    <div class="feature"><span class="icon">🧩</span><h3>Plugin manager</h3><p>Install UE4SS and PalDefender (anti-cheat) in one click, and run PalDefender admin commands right from the dashboard.</p></div>
-    <div class="feature"><span class="icon">🔔</span><h3>Discord notifications</h3><p>Player joins/leaves, restarts, backups, updates, low disk space — pushed to your Discord server.</p></div>
-    <div class="feature"><span class="icon">⬆️</span><h3>One-click updates</h3><p>Detects new Palworld builds on Steam and updates your server with a clean stop → update → start cycle. Ready for the 1.0 release.</p></div>
-  </div>
-</section>
+            <!-- Comparison -->
+            <section class="comparison">
+                <h2>Why Choose This?</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>This</th>
+                            <th>Nitrado</th>
+                            <th>G-Portal</th>
+                            <th>Manual Setup</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Cost</strong></td>
+                            <td><span class="check">✓ Free</span></td>
+                            <td><span class="cross">✗ $10-40/mo</span></td>
+                            <td><span class="cross">✗ $15-30/mo</span></td>
+                            <td><span class="check">✓ Free</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Web Dashboard</strong></td>
+                            <td><span class="check">✓ Yes</span></td>
+                            <td><span class="check">✓ Yes</span></td>
+                            <td><span class="check">✓ Yes</span></td>
+                            <td><span class="cross">✗ No</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Open Source</strong></td>
+                            <td><span class="check">✓ MIT</span></td>
+                            <td><span class="cross">✗ No</span></td>
+                            <td><span class="cross">✗ No</span></td>
+                            <td><span class="check">✓ You code</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Setup Difficulty</strong></td>
+                            <td><span class="check">✓ 1-click</span></td>
+                            <td><span class="check">✓ Auto</span></td>
+                            <td><span class="check">✓ Auto</span></td>
+                            <td><span class="cross">✗ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mods (UE4SS)</strong></td>
+                            <td><span class="check">✓ 1-click</span></td>
+                            <td><span class="cross">✗ Extra $</span></td>
+                            <td><span class="cross">✗ Extra $</span></td>
+                            <td><span class="check">✓ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Self-Hosted</strong></td>
+                            <td><span class="check">✓ Yes</span></td>
+                            <td><span class="cross">✗ Their server</span></td>
+                            <td><span class="cross">✗ Their server</span></td>
+                            <td><span class="check">✓ Yes</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Subscription</strong></td>
+                            <td><span class="check">✓ None</span></td>
+                            <td><span class="cross">✗ Required</span></td>
+                            <td><span class="cross">✗ Required</span></td>
+                            <td><span class="check">✓ None</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Share Dashboard</strong></td>
+                            <td><span class="check">✓ Your IP</span></td>
+                            <td><span class="check">✓ Yes</span></td>
+                            <td><span class="check">✓ Yes</span></td>
+                            <td><span class="cross">✗ Files only</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
 
-<section class="wrap">
-  <h2>Screenshots</h2>
-  <div class="shots">
-    <figure><img src="img/launcher.png" alt="Desktop installer wizard" loading="lazy"><figcaption>Installer wizard — no prerequisites, no command line</figcaption></figure>
-    <figure><img src="img/dashboard.png" alt="Dashboard: server control, connected players, announcements" loading="lazy"><figcaption>Dashboard — server control, players, announcements</figcaption></figure>
-    <figure><img src="img/map.png" alt="Live map with real-time player positions" loading="lazy"><figcaption>Live map — real-time player positions</figcaption></figure>
-    <figure><img src="img/backups.png" alt="Backups: schedule, restore, import" loading="lazy"><figcaption>Backups — schedules, restore, import</figcaption></figure>
-    <figure><img src="img/settings.png" alt="World settings editor" loading="lazy"><figcaption>World settings — edit everything from the browser</figcaption></figure>
-  </div>
-</section>
+            <!-- Highlight -->
+            <div class="highlight">
+                <h3>🎯 Perfect For:</h3>
+                <p>
+                    <strong>Friends who want a shared server</strong> without paying monthly hosting fees.<br>
+                    <strong>Server admins</strong> who want full control over their data (self-hosted).<br>
+                    <strong>Developers</strong> who want to extend functionality (open source, REST API).<br>
+                    <strong>Budget-conscious gamers</strong> who already have a PC running 24/7.
+                </p>
+            </div>
 
-<section class="wrap">
-  <h2>Why Pal Launcher?</h2>
-  <table class="compare">
-    <tr><th></th><th>Pal Launcher</th><th>Typical paid managers</th></tr>
-    <tr><td>Price</td><td class="yes">Free, unlimited</td><td class="no">~€5/month for Pro features</td></tr>
-    <tr><td>Live player map (Palworld)</td><td class="yes">✔ Included</td><td class="no">✘ Not available</td></tr>
-    <tr><td>Remote web dashboard + multi-user roles</td><td class="yes">✔ Included</td><td class="no">✘ Desktop app only</td></tr>
-    <tr><td>Plugin manager (UE4SS, PalDefender)</td><td class="yes">✔ Included</td><td class="no">✘ Manual install</td></tr>
-    <tr><td>Automatic backups & scheduled restarts</td><td class="yes">✔ Included</td><td class="no">Partially paywalled</td></tr>
-  </table>
-</section>
+            <!-- FAQ -->
+            <section style="margin: 80px 0;">
+                <h2 style="text-align: center; font-size: 2.5em; margin-bottom: 40px; color: #00d4ff;">Frequently Asked</h2>
+                <div style="max-width: 700px; margin: 0 auto; display: grid; gap: 30px;">
+                    <div>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Does Palworld ban you for this?</h4>
+                        <p style="color: #aaa;">No. This is an admin tool like editing config files. Palworld's REST API is intentionally public.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;">What happens if my PC crashes?</h4>
+                        <p style="color: #aaa;">The server is a Windows service. It auto-restarts on reboot without manual intervention.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Do I need technical knowledge?</h4>
+                        <p style="color: #aaa;">No. One-click installer guides you step-by-step. No command line needed.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Is it really free?</h4>
+                        <p style="color: #aaa;">100% free and open source (MIT license). Your only cost is electricity to run your PC.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Can I move my server later?</h4>
+                        <p style="color: #aaa;">Yes. Backups are standard Palworld saves—compatible with any server.</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #00d4ff; margin-bottom: 10px;">Does it track my data?</h4>
+                        <p style="color: #aaa;">No. Zero telemetry. Everything stays on your machine. Fully auditable open source code.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
 
-<section class="wrap">
-  <h2>Up and running in 3 steps</h2>
-  <div class="steps">
-    <div class="step"><div><strong>Download & install</strong><br>Run the setup — Windows asks for admin rights automatically (needed for the Windows services and the firewall rule).</div></div>
-    <div class="step"><div><strong>Let the wizard work</strong><br>It downloads SteamCMD and the Palworld dedicated server, applies your settings, and registers everything as Windows services.</div></div>
-    <div class="step"><div><strong>Open the dashboard</strong><br>Manage your server from the browser, share the join address with your friends, and play.</div></div>
-  </div>
-  <p class="lang-note">🇫🇷 L'interface est disponible en français et en anglais (détection automatique).</p>
-</section>
-
-<footer>
-  <p>Pal Launcher Server Manager is an independent tool, not affiliated with Pocketpair, Inc. “Palworld” is a trademark of its respective owner.<br>
-  <a href="https://github.com/Nothinx-44/pal-launcher-server-manager">GitHub</a> · <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/releases/latest">Download</a></p>
-</footer>
-
+    <footer>
+        <div class="container">
+            <p>💖 Made with passion for Palworld gamers</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager" style="color: #00d4ff; text-decoration: none;">GitHub</a> •
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/issues" style="color: #00d4ff; text-decoration: none;">Report Issues</a> •
+                <a href="https://github.com/Nothinx-44/pal-launcher-server-manager/blob/main/LICENSE" style="color: #00d4ff; text-decoration: none;">MIT License</a>
+            </p>
+        </div>
+    </footer>
 </body>
 </html>
