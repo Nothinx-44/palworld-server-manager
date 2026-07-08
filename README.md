@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/logo.png" alt="Pal Launcher Server Manager" width="100" height="100">
+  <img src="docs/img/logo.png" alt="Pal Launcher Server Manager" width="100" height="100">
 </div>
 
 # Pal Launcher Server Manager
