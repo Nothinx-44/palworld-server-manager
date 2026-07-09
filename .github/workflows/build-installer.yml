@@ -31,7 +31,13 @@ jobs:
         run: npm ci
 
       - name: Build installer (NSIS)
-        run: npm run dist
+        # --publish never : en CI, electron-builder tente sinon de publier tout seul vers GitHub
+        # (et réclame un GH_TOKEN). On ne veut que produire l'installeur, la publication est faite
+        # à part. On appelle donc les étapes de `dist` à la main pour ajouter ce flag.
+        run: |
+          npm run icon
+          npm run fetch-node
+          npx electron-builder --win nsis --publish never
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
