@@ -31,7 +31,7 @@ If you already have a PC running 24/7, this is perfect.
 
 **Cost:** Free. Forever. Your only cost is electricity.
 
-GitHub: https://github.com/Nothinx-44/pal-launcher-server-manager
+GitHub: https://github.com/Nothinx-44/palworld-launcher-server-manager
 
 Drop questions below!
 ```
@@ -64,7 +64,7 @@ why pay?
 
 **Tech stack:** Node.js + Electron. Runs on Windows. Dashboard is in your browser.
 
-GitHub: https://github.com/Nothinx-44/pal-launcher-server-manager
+GitHub: https://github.com/Nothinx-44/palworld-launcher-server-manager
 
 Open to feedback and contributions!
 ```
@@ -107,7 +107,7 @@ because I believe good tools should be free.
 - Zero telemetry
 - Minimal dependencies
 
-GitHub: https://github.com/Nothinx-44/pal-launcher-server-manager
+GitHub: https://github.com/Nothinx-44/palworld-launcher-server-manager
 
 Contributions welcome!
 ```
@@ -135,8 +135,8 @@ Hey! I built a free admin dashboard for Palworld servers. No subscription, runs 
 **Setup:** One .exe, follow wizard
 **Why:** Nitrado charges $10-40/mo. This is $0.
 
-👉 Download: https://github.com/Nothinx-44/pal-launcher-server-manager/releases
-👉 Source: https://github.com/Nothinx-44/pal-launcher-server-manager
+👉 Download: https://github.com/Nothinx-44/palworld-launcher-server-manager/releases
+👉 Source: https://github.com/Nothinx-44/palworld-launcher-server-manager
 
 Questions? Drop them in #support or open an issue on GitHub!
 ```
@@ -155,7 +155,7 @@ One-click installer. Admin commands. Backups. Discord integration. Open source.
 
 Nitrado charges $10-40/mo. This is $0.
 
-github.com/Nothinx-44/pal-launcher-server-manager
+github.com/Nothinx-44/palworld-launcher-server-manager
 
 #Palworld #GameDev #OpenSource
 ```
@@ -169,7 +169,7 @@ automatically or on-demand. Restore your world in seconds.
 
 Free. Open source. Your PC.
 
-github.com/Nothinx-44/pal-launcher-server-manager
+github.com/Nothinx-44/palworld-launcher-server-manager
 
 #Palworld
 ```
@@ -181,7 +181,7 @@ github.com/Nothinx-44/pal-launcher-server-manager
 All from a web dashboard. Your friends see it too.
 
 Free Palworld server admin tool:
-github.com/Nothinx-44/pal-launcher-server-manager
+github.com/Nothinx-44/palworld-launcher-server-manager
 
 #Palworld #GameServer
 ```
@@ -196,7 +196,7 @@ Pal Launcher: $0/month
 
 One-click install. Web dashboard. Full control.
 
-github.com/Nothinx-44/pal-launcher-server-manager
+github.com/Nothinx-44/palworld-launcher-server-manager
 
 #Palworld
 ```
@@ -214,7 +214,7 @@ Running a Palworld server? Download the free admin dashboard:
 
 No subscription. Ever.
 
-github.com/Nothinx-44/pal-launcher-server-manager/releases
+github.com/Nothinx-44/palworld-launcher-server-manager/releases
 
 #Palworld #GameDev
 ```
@@ -251,7 +251,7 @@ they do for free.
 
 No command line needed. No configuration. Just works.
 
-Download: https://github.com/Nothinx-44/pal-launcher-server-manager/releases
+Download: https://github.com/Nothinx-44/palworld-launcher-server-manager/releases
 
 Questions? Open an issue on GitHub or reply to this email.
 

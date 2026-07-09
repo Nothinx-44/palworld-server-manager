@@ -6,10 +6,10 @@
 
 > **The free, open-source dashboard to run your Palworld server like a pro. No hosting service required. Install on your PC in 5 minutes.**
 
-[![GitHub stars](https://img.shields.io/github/stars/Nothinx-44/pal-launcher-server-manager?style=flat-square&logo=github)](https://github.com/Nothinx-44/pal-launcher-server-manager)
-[![GitHub downloads](https://img.shields.io/github/downloads/Nothinx-44/pal-launcher-server-manager/total?style=flat-square&logo=github)](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+[![GitHub stars](https://img.shields.io/github/stars/Nothinx-44/palworld-launcher-server-manager?style=flat-square&logo=github)](https://github.com/Nothinx-44/palworld-launcher-server-manager)
+[![GitHub downloads](https://img.shields.io/github/downloads/Nothinx-44/palworld-launcher-server-manager/total?style=flat-square&logo=github)](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Windows](https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows)](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+[![Windows](https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows)](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases)
 
 <div align="center">
 
@@ -39,14 +39,14 @@
 
 **Option 1: One-Click Desktop App (Recommended)**
 
-1. [Download `PalLauncherServerManager-Setup.exe`](https://github.com/Nothinx-44/pal-launcher-server-manager/releases) (latest release)
+1. [Download `PalLauncherServerManager-Setup.exe`](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases) (latest release)
 2. Double-click → Windows asks for admin → follow wizard
 3. Done. Dashboard is live at `http://localhost:3000`
 
 **Option 2: Manual Install (For Linux enthusiasts)**
 
 ```bash
-git clone https://github.com/Nothinx-44/pal-launcher-server-manager-source.git
+git clone https://github.com/Nothinx-44/palworld-launcher-server-manager-source.git
 cd palworld-dashboard
 npm install
 npm run create-user -- you password123 admin
@@ -136,7 +136,7 @@ A: No. Zero telemetry. Everything stays on your machine.
 
 ### 🎯 Next Steps
 
-1. [Download the latest release](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+1. [Download the latest release](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases)
 2. Run the setup wizard
 3. Create a player account in the web dashboard
 4. Invite your friends with your IP + port
@@ -144,7 +144,7 @@ A: No. Zero telemetry. Everything stays on your machine.
 
 ### 🐛 Found a Bug?
 
-[Create an issue](https://github.com/Nothinx-44/pal-launcher-server-manager/issues) or submit a PR.
+[Create an issue](https://github.com/Nothinx-44/palworld-launcher-server-manager/issues) or submit a PR.
 
 ### 📖 Full Documentation
 
@@ -178,14 +178,14 @@ MIT — use freely, modify, redistribute. See [LICENSE](LICENSE).
 
 **Option 1 : Application Desktop (Recommandé)**
 
-1. [Télécharge `PalLauncherServerManager-Setup.exe`](https://github.com/Nothinx-44/pal-launcher-server-manager/releases) (dernière release)
+1. [Télécharge `PalLauncherServerManager-Setup.exe`](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases) (dernière release)
 2. Double-clic → Windows demande admin → suis l'assistant
 3. Voilà. Le dashboard est à `http://localhost:3000`
 
 **Option 2 : Installation Manuelle (Ligne de commande)**
 
 ```bash
-git clone https://github.com/Nothinx-44/pal-launcher-server-manager-source.git
+git clone https://github.com/Nothinx-44/palworld-launcher-server-manager-source.git
 cd palworld-dashboard
 npm install
 npm run create-user -- toi motdepasse123 admin
@@ -275,7 +275,7 @@ A : Non. Zéro télémétrie. Tout reste sur ta machine.
 
 ### 🎯 Prochaines Étapes
 
-1. [Télécharge la dernière release](https://github.com/Nothinx-44/pal-launcher-server-manager/releases)
+1. [Télécharge la dernière release](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases)
 2. Lance l'assistant de configuration
 3. Crée un compte joueur dans le dashboard
 4. Invite tes amis avec ton IP + port
@@ -283,7 +283,7 @@ A : Non. Zéro télémétrie. Tout reste sur ta machine.
 
 ### 🐛 Bug trouvé ?
 
-[Crée une issue](https://github.com/Nothinx-44/pal-launcher-server-manager/issues) ou soumets une PR.
+[Crée une issue](https://github.com/Nothinx-44/palworld-launcher-server-manager/issues) ou soumets une PR.
 
 ### 📖 Documentation Complète
 

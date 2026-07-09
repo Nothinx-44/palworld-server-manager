@@ -19,7 +19,7 @@ Advanced setup, API reference, development guide.
 
 ### Option 1: Desktop App (Easiest)
 
-1. Download [PalLauncherServerManager-Setup.exe](https://github.com/Nothinx-44/pal-launcher-server-manager/releases) from Releases
+1. Download [PalLauncherServerManager-Setup.exe](https://github.com/Nothinx-44/palworld-launcher-server-manager/releases) from Releases
 2. Double-click the .exe
 3. Windows shows UAC prompt → Click "Yes"
 4. Follow the setup wizard
@@ -38,8 +38,8 @@ Advanced setup, API reference, development guide.
 
 ```powershell
 # Clone the repo
-git clone https://github.com/Nothinx-44/pal-launcher-server-manager-source.git
-cd pal-launcher-server-manager-source
+git clone https://github.com/Nothinx-44/palworld-launcher-server-manager-source.git
+cd palworld-launcher-server-manager-source
 
 # Install dependencies
 npm install
@@ -385,8 +385,8 @@ A: Check GitHub for updates manually. Auto-updates coming in v2.0.
 
 ## Support
 
-- **Issues:** https://github.com/Nothinx-44/pal-launcher-server-manager/issues
-- **Discussions:** https://github.com/Nothinx-44/pal-launcher-server-manager/discussions
+- **Issues:** https://github.com/Nothinx-44/palworld-launcher-server-manager/issues
+- **Discussions:** https://github.com/Nothinx-44/palworld-launcher-server-manager/discussions
 - **Contributing:** PRs welcome!
 
 ---
