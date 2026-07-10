@@ -58,8 +58,9 @@ function renderShare(status) {
 
 function renderAccounts(accounts) {
   const body = $('accountsBody');
+  const roleLabels = { admin: 'Admin', user: 'Utilisateur', viewer: 'Lecture seule' };
   body.innerHTML = (accounts || []).map(u =>
-    `<tr><td>${escapeHtml(u.username)}</td><td>${u.role === 'admin' ? 'Admin' : 'Lecture seule'}</td></tr>`
+    `<tr><td>${escapeHtml(u.username)}</td><td>${roleLabels[u.role] || u.role}</td></tr>`
   ).join('');
   $('accountsEmpty').style.display = (accounts && accounts.length) ? 'none' : 'block';
 }
@@ -71,6 +72,7 @@ function escapeHtml(str) {
 function fillForm(current = {}) {
   $('installDir').value = current.installDir || '';
   $('steamCmdDir').value = current.steamCmdDir || '';
+  $('serverName').value = current.serverName || '';
   $('maxPlayers').value = current.maxPlayers || 8;
   $('port').value = current.port || 8211;
   $('restApiPort').value = current.restApiPort || 8212;

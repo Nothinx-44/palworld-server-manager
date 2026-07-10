@@ -480,6 +480,58 @@ function renderActivityPage() {
 document.getElementById('activityPrev').addEventListener('click', () => { activityPage--; renderActivityPage(); });
 document.getElementById('activityNext').addEventListener('click', () => { activityPage++; renderActivityPage(); });
 
+// ---------- Console serveur (sortie de PalServer.exe, redirigée par NSSM) ----------
+const consoleOutput = document.getElementById('consoleOutput');
+const consoleFilter = document.getElementById('consoleFilter');
+let consoleLines = null; // null = pas encore chargée (ou indisponible)
+
+function renderConsole() {
+  if (consoleLines === null) return;
+  const filter = consoleFilter.value.trim().toLowerCase();
+  const visible = filter ? consoleLines.filter(l => l.toLowerCase().includes(filter)) : consoleLines;
+  if (visible.length) {
+    consoleOutput.textContent = visible.join('\n');
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  } else {
+    consoleOutput.textContent = consoleLines.length
+      ? '(aucune ligne ne correspond au filtre)'
+      : "(vide) PalServer.exe n'écrit aucune sortie console exploitable — c'est une limitation connue de Palworld sur Windows, pas un problème du dashboard. Le Journal d'activité ci-dessus reste la meilleure source pour suivre ce qui se passe (démarrages, sauvegardes, joueurs, alertes...).";
+  }
+}
+
+async function refreshConsole() {
+  const r = await api('GET', '/api/console');
+  if (r && r.lines) { consoleLines = r.lines; renderConsole(); return; }
+  consoleLines = null;
+  consoleOutput.textContent =
+    r && r.error === 'server_not_installed' ? 'Serveur pas encore installé.'
+    : r && r.error === 'console_not_enabled' ? 'Console pas encore active sur ce serveur — clique "Activer la console" ci-dessus, puis redémarre le serveur.'
+    : 'Impossible de charger la console.';
+}
+
+document.getElementById('consoleRefreshBtn').addEventListener('click', refreshConsole);
+consoleFilter.addEventListener('input', renderConsole);
+
+let consoleAutoTimer = null;
+document.getElementById('consoleAuto').addEventListener('change', e => {
+  if (e.target.checked) {
+    refreshConsole();
+    consoleAutoTimer = setInterval(refreshConsole, 5000);
+  } else {
+    clearInterval(consoleAutoTimer);
+    consoleAutoTimer = null;
+  }
+});
+
+document.getElementById('consoleEnableBtn').addEventListener('click', async () => {
+  const r = await api('POST', '/api/console/enable', {});
+  if (r && r.ok) showToast('Console activée — redémarre le serveur pour qu\'elle commence à enregistrer');
+  else showToast(r && r.error === 'service_not_registered'
+    ? 'Service Windows introuvable — (ré)installe les services depuis le lanceur'
+    : 'Échec de l\'activation de la console');
+  refreshActivity();
+});
+
 // Menu contextuel sur un nom de joueur (historique) : stats globales + ban rapide.
 function closePlayerMenu() {
   const existing = document.getElementById('playerMenu');

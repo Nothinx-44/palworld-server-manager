@@ -28,6 +28,7 @@ const backupRestore = require('./lib/backupRestore');
 const networkInfo = require('./lib/networkInfo');
 const plugins = require('./lib/plugins');
 const { updateEnvFile } = require('./lib/envFile');
+const { readTail } = require('./lib/logTail');
 const paldefenderApi = require('./lib/paldefenderApi');
 const dashboardUpdate = require('./lib/dashboardUpdate');
 
@@ -69,9 +70,10 @@ app.use(session({
 }));
 // La page du dashboard ne doit être servie qu'aux utilisateurs connectés (les JS/CSS restent
 // publics, ils ne contiennent rien de sensible). Placé avant express.static, qui servirait
-// sinon /index.html à n'importe qui.
+// sinon /index.html à n'importe qui. Comparaison insensible à la casse : le système de fichiers
+// Windows l'est aussi, express.static servirait donc /INDEX.HTML sans passer par ce garde-fou.
 app.use((req, res, next) => {
-  if (req.path === '/index.html' && !(req.session && req.session.user)) {
+  if (req.path.toLowerCase() === '/index.html' && !(req.session && req.session.user)) {
     return res.redirect('/login.html');
   }
   next();
@@ -731,6 +733,9 @@ function makeBackup() {
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     output.on('close', () => resolve(filename));
+    // Sans ce handler, une erreur d'écriture (disque plein en plein zip…) laisserait la
+    // promesse en suspens pour toujours — la requête HTTP ne répondrait jamais.
+    output.on('error', reject);
     archive.on('error', reject);
     archive.pipe(output);
     archive.directory(savePath, false);
@@ -899,6 +904,32 @@ app.get('/api/activity', requireAuth, (req, res) => {
   res.json({ entries: activityLog.list(200) });
 });
 
+// ---------- Console serveur (sortie de PalServer.exe redirigée par NSSM vers console.log) ----------
+// Lecture pour tout utilisateur connecté (même niveau que le journal d'activité). Le fichier
+// n'existe qu'une fois la redirection configurée ET le serveur (re)démarré au moins une fois.
+app.get('/api/console', requireAuth, (req, res) => {
+  const file = serverSetup.getCurrentConsoleLogPath();
+  if (!file) return res.status(404).json({ error: 'server_not_installed' });
+  const lines = readTail(file);
+  if (lines === null) return res.status(404).json({ error: 'console_not_enabled' });
+  res.json({ lines });
+});
+
+// Active la redirection console sur un service existant (serveurs installés avant que le
+// dashboard configure la redirection à l'installation). Effet au prochain démarrage du serveur.
+app.post('/api/console/enable', requireAuth, requireManager, async (req, res) => {
+  try {
+    await serverSetup.enableConsoleRedirect();
+    activityLog.log(req.session.user.username, 'console-enable');
+    res.json({ ok: true });
+  } catch (err) {
+    const message = String(err.message || err);
+    if (message === 'server_not_installed') return res.status(404).json({ error: 'server_not_installed' });
+    if (message === 'service_not_registered') return res.status(409).json({ error: 'service_not_registered' });
+    res.status(500).json({ error: message });
+  }
+});
+
 // Nouvelle version du dashboard disponible ? (comparée aux releases GitHub publiques)
 app.get('/api/dashboard/update', requireAuth, async (req, res) => {
   res.json(await dashboardUpdate.check());
@@ -1025,7 +1056,11 @@ app.post('/api/discord/config', requireAuth, requireAdmin, (req, res) => {
 });
 
 app.post('/api/discord/remove', requireAuth, requireAdmin, (req, res) => {
-  updateEnvFile({ DISCORD_WEBHOOK_URL: '' });
+  // Retire aussi les préférences de catégories (valeur null = ligne supprimée du .env) :
+  // une réactivation future repart proprement avec tout coché par défaut.
+  const updates = { DISCORD_WEBHOOK_URL: '' };
+  Object.keys(discord.CATEGORIES).forEach(key => { updates[`DISCORD_NOTIFY_${key.toUpperCase()}`] = null; });
+  updateEnvFile(updates);
   activityLog.log(req.session.user.username, 'discord-webhook-removed');
   res.json({ ok: true });
 });

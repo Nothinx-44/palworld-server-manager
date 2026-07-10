@@ -145,7 +145,7 @@ ipcMain.handle('account:create', async (_evt, { username, password, role } = {})
     if (!username || !password) throw new Error("Nom d'utilisateur et mot de passe requis.");
     if (password.length < 6) throw new Error('Mot de passe : 6 caractères minimum.');
     if (users.findUser(username)) throw new Error('Ce compte existe déjà.');
-    users.upsertUser(username, password, role === 'viewer' ? 'viewer' : 'admin');
+    users.upsertUser(username, password, role); // rôle inconnu -> admin (users.normalizeRole)
     return { ok: true, accounts: users.listUsers() };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };

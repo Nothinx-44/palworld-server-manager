@@ -185,6 +185,19 @@
         <ul class="backup-list" id="bansList"></ul>
         <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
       </div>
+
+      <div class="panel">
+        <h2>Console serveur</h2>
+        <div class="btn-row" style="align-items:center; flex-wrap:wrap;">
+          <button class="action" id="consoleRefreshBtn" type="button">Rafraîchir</button>
+          <label class="switch-row" style="margin-bottom:0;">
+            <input type="checkbox" id="consoleAuto"> Auto (5 s)
+          </label>
+          <button class="action" id="consoleEnableBtn" type="button" data-manager-only>Activer la console</button>
+          <input type="text" id="consoleFilter" placeholder="Filtrer les lignes…" style="flex:1; min-width:180px;">
+        </div>
+        <pre class="setup-log" id="consoleOutput" style="margin-top:12px; max-height:340px;">Clique sur "Rafraîchir" pour charger la console.</pre>
+      </div>
     </section>
 
     <!-- ============ SAUVEGARDES ============ -->
