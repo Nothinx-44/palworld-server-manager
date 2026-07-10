@@ -292,7 +292,13 @@
     'Désinstaller': 'Uninstall',
     'Open source (MIT). Ajoute un dossier': 'Open source (MIT). Adds a',
     'avec quelques mods d\'exemple ; les tiens peuvent être ajoutés par la suite directement dans ce dossier.': 'folder with a few example mods; yours can be added later directly into that folder.',
-    '⚠️ Binaire fermé (code non public) fourni par ses auteurs — installé directement depuis leur release GitHub officielle, jamais modifié par ce dashboard. Installe la dernière version préversion (bêta 1.8.0) : c\'est la première à exposer l\'API des Commandes Admin.': '⚠️ Closed binary (non-public code) provided by its authors — installed directly from their official GitHub release, never modified by this dashboard. Installs the latest pre-release (1.8.0 beta): it is the first to expose the Admin Commands API.',
+    // Le <strong> au milieu de la phrase (index.html) coupe le texte en 3 nœuds DOM distincts :
+    // chaque fragment doit avoir sa propre entrée (une clé couvrant toute la phrase ne matcherait
+    // jamais, aucun nœud texte ne contenant la phrase entière).
+    '⚠️ Binaire fermé (code non public) fourni par ses auteurs — installé directement depuis leur release GitHub officielle, jamais modifié par ce dashboard. Installe la dernière version':
+      '⚠️ Closed binary (non-public code) provided by its authors — installed directly from their official GitHub release, never modified by this dashboard. Installs the latest',
+    'préversion (bêta 1.8.0)': 'pre-release (1.8.0 beta)',
+    ": c'est la première à exposer l'API des Commandes Admin.": ': it is the first to expose the Admin Commands API.',
     'Commandes Admin (onglet Tableau de bord)': 'Admin Commands (Dashboard tab)',
     "Entièrement automatique : l'installation active l'API et configure l'accès. Il suffit ensuite de démarrer le serveur.":
       'Fully automatic: installation enables the API and sets up access. Just start the server afterwards.',
@@ -337,21 +343,51 @@
     'Mot de passe : 6 caractères minimum.': 'Password: 6 characters minimum.',
     'Échec de la création du compte.': 'Failed to create the account.',
     // Launcher Electron
-    "L'application ne tourne pas avec les droits administrateur : la création des services Windows et de la règle de pare-feu échouera. Ferme, fais un clic droit sur l'.exe → « Exécuter en tant qu'administrateur ».":
-      "The application is not running with administrator rights: creating Windows services and the firewall rule will fail. Close it, right-click the .exe → \"Run as administrator\".",
+    "⚠️ L'application ne tourne pas avec les droits administrateur : la création des services Windows et de la règle de pare-feu échouera. Ferme, fais un clic droit sur l'.exe → « Exécuter en tant qu'administrateur ».":
+      "⚠️ The application is not running with administrator rights: creating Windows services and the firewall rule will fail. Close it, right-click the .exe → \"Run as administrator\".",
     'État de l\'installation': 'Installation status',
     'Installer / configurer le serveur': 'Install / configure the server',
     'Télécharge SteamCMD + le serveur Palworld (12–15 Go), configure': 'Downloads SteamCMD + Palworld server (12–15 GB), configures',
     ', crée les services Windows (serveur + dashboard) et la règle de pare-feu. NSSM est téléchargé automatiquement.': ', creates Windows services (server + dashboard) and the firewall rule. NSSM is downloaded automatically.',
+    'Dossier d\'installation': 'Install folder',
+    'ex: D:\\PalworldServer': 'e.g. D:\\PalworldServer',
+    'ex: Chez les copains': 'e.g. My Friends Server',
+    'Parcourir…': 'Browse…',
+    'Mot de passe serveur': 'Server password',
+    'optionnel': 'optional',
+    "Mot de passe admin (sert aussi à l'API REST)": "Admin password (also used for the REST API)",
+    '6 caractères minimum — requis': 'Minimum 6 characters — required',
     'auto si laissé vide': 'auto if left empty',
+    "Échec de l'installation.": 'Installation failed.',
     'Lancer le dashboard': 'Launch the dashboard',
+    'Ouvrir dans le navigateur': 'Open in browser',
+    'Dashboard démarré': 'Dashboard started',
+    'Dashboard arrêté': 'Dashboard stopped',
+    'Dashboard : en ligne': 'Dashboard: online',
+    'Dashboard : arrêté': 'Dashboard: stopped',
+    'Dashboard : non installé': 'Dashboard: not installed',
     'Journal d\'installation': 'Installation log',
     'Services Windows': 'Windows services',
     'Recrée ou supprime les services (serveur + dashboard) sans re-télécharger. La désinstallation ne touche ni au serveur ni aux sauvegardes.': 'Recreates or removes services (server + dashboard) without re-downloading. Uninstallation does not touch the server or backups.',
     "À partager avec tes amis (après redirection de port sur ta box) :": "Share with your friends (after port forwarding on your router):",
     '(Ré)installer': '(Re)install',
+    'Services installés': 'Services installed',
+    'Services désinstallés': 'Services uninstalled',
+    'Supprimer les services Windows (serveur + dashboard) ? Le serveur installé et les sauvegardes ne sont pas touchés.': 'Remove the Windows services (server + dashboard)? The installed server and backups are not affected.',
     'Échec de l\'installation': 'Installation failed',
     'Pense à': 'Remember to',
+    // Checklist du launcher
+    'Droits administrateur': 'Administrator rights',
+    'Service serveur enregistré': 'Server service registered',
+    'Service dashboard enregistré': 'Dashboard service registered',
+    // Comptes (launcher)
+    'Créer le compte': 'Create account',
+    'Mot de passe (6 car. min.)': 'Password (6 chars min.)',
+    'Aucun compte — crée le premier ci-dessous.': 'No accounts yet — create the first one below.',
+    "Nom d'utilisateur et mot de passe requis.": 'Username and password required.',
+    'Ce compte existe déjà.': 'This account already exists.',
+    'Échec de la création.': 'Creation failed.',
+    'Aucune configuration enregistrée — fais d\'abord une installation complète (étape 2).': 'No configuration saved yet — do a full installation first (step 2).',
     // Divers
     'télécharger sur GitHub': 'download on GitHub'
   };
