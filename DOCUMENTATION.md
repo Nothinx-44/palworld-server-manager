@@ -29,6 +29,9 @@ Advanced setup, API reference, development guide.
 
 ### Option 2: Manual Install (Command Line)
 
+> ⚠️ The source repository is currently private — this option is not available to the public.
+> Use the [desktop app](#option-1-desktop-app-easiest) above instead.
+
 **Prerequisites:**
 - Windows 10+
 - [Node.js LTS](https://nodejs.org) installed
@@ -37,7 +40,7 @@ Advanced setup, API reference, development guide.
 **Steps:**
 
 ```powershell
-# Clone the repo
+# Clone the repo (private — source access not currently public)
 git clone https://github.com/Nothinx-44/palworld-launcher-server-manager-source.git
 cd palworld-launcher-server-manager-source
 
@@ -370,10 +373,10 @@ Cron reference: https://crontab.guru
 A: There's only one version. It's 100% free & open source forever.
 
 **Q: Can I run multiple servers?**  
-A: No, this dashboard runs one server. Clone the repo + change port + `.env` for multiple.
+A: No, this dashboard runs one server. A second install (different port + `.env`) would be needed for a second server.
 
 **Q: Does it work on Linux/Mac?**  
-A: Desktop app requires Windows. Web dashboard can run on Linux with manual setup.
+A: No. Both the desktop app and the web dashboard rely on Windows-only tooling (NSSM, PowerShell, Windows Firewall) to control the Palworld server.
 
 **Q: Can I use this commercially?**  
 A: Yes, MIT license allows commercial use, modification, distribution.

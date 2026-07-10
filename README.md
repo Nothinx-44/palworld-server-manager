@@ -43,17 +43,10 @@
 2. Double-click → Windows asks for admin → follow wizard
 3. Done. Dashboard is live at `http://localhost:3000`
 
-**Option 2: Manual Install (For Linux enthusiasts)**
-
-```bash
-git clone https://github.com/Nothinx-44/palworld-launcher-server-manager-source.git
-cd palworld-dashboard
-npm install
-npm run create-user -- you password123 admin
-node server.js
-```
-
-Then open `http://localhost:3000` and log in.
+> ⚠️ **Windows only.** Both the desktop app and the web dashboard rely on Windows-specific
+> tooling (NSSM for the Windows service, PowerShell, Windows Firewall) to control the Palworld
+> server. There is no Linux/Mac support at this time, and the source code isn't public, so
+> self-hosting the dashboard on another OS isn't possible right now.
 
 ### ✨ Features at a Glance
 
@@ -123,7 +116,7 @@ A: No. This is an admin tool, like notepad edits. Palworld's official API is int
 A: The server is a Windows service. It auto-restarts on reboot, and the dashboard reconnects.
 
 **Q: Can I run this on Linux/Mac?**  
-A: Not yet. The desktop app requires Windows (Electron + Node.exe). Web dashboard is OS-agnostic if you manual-install.
+A: No. Both the desktop app and the web dashboard rely on Windows-only tooling (NSSM, PowerShell, Windows Firewall) to control the Palworld server. There's no Linux/Mac support, and the source code isn't public to self-host from.
 
 **Q: Is there a cost?**  
 A: No. Free & open source. Your only cost is electricity.
@@ -182,17 +175,10 @@ MIT — use freely, modify, redistribute. See [LICENSE](LICENSE).
 2. Double-clic → Windows demande admin → suis l'assistant
 3. Voilà. Le dashboard est à `http://localhost:3000`
 
-**Option 2 : Installation Manuelle (Ligne de commande)**
-
-```bash
-git clone https://github.com/Nothinx-44/palworld-launcher-server-manager-source.git
-cd palworld-dashboard
-npm install
-npm run create-user -- toi motdepasse123 admin
-node server.js
-```
-
-Puis ouvre `http://localhost:3000` et connecte-toi.
+> ⚠️ **Windows uniquement.** L'application desktop et le dashboard web dépendent tous les deux
+> d'outils propres à Windows (NSSM pour le service Windows, PowerShell, pare-feu Windows) pour
+> piloter le serveur Palworld. Pas de support Linux/Mac pour l'instant, et le code source n'est
+> pas public : impossible de s'auto-héberger sur un autre OS actuellement.
 
 ### ✨ Fonctionnalités
 
@@ -262,7 +248,7 @@ A : Non. C'est un outil admin, comme éditer des fichiers. L'API officielle de P
 A : Le serveur est un service Windows. Il redémarre tout seul au reboot.
 
 **Q : Pal Launcher fonctionne-t-il sur Linux/Mac ?**  
-A : Pas encore. L'app desktop demande Windows. Le dashboard web est agnostique si tu l'installes manuellement.
+A : Non. L'application desktop et le dashboard web dépendent tous les deux d'outils propres à Windows (NSSM, PowerShell, pare-feu Windows) pour piloter le serveur Palworld. Pas de support Linux/Mac, et le code source n'est pas public pour un auto-hébergement.
 
 **Q : C'est payant ?**  
 A : Non. Gratuit & open source. Seul coût : l'électricité.

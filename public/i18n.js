@@ -240,6 +240,7 @@
     'Comment créer un webhook Discord ?': 'How to create a Discord webhook?',
     "(Paramètres du salon → Intégrations → Webhooks → Nouveau webhook → Copier l'URL du webhook)":
       '(Channel settings → Integrations → Webhooks → New webhook → Copy webhook URL)',
+    'Langue des messages': 'Message language',
     'Notifications à recevoir': 'Notifications to receive',
     'Démarrage / arrêt / redémarrage du serveur': 'Server start / stop / restart',
     'Joueurs qui rejoignent / quittent': 'Players joining / leaving',

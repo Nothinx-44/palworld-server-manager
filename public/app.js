@@ -1070,6 +1070,7 @@ const discordWebhookUrl = document.getElementById('discordWebhookUrl');
 const discordStatus = document.getElementById('discordStatus');
 const discordRemoveBtn = document.getElementById('discordRemoveBtn');
 const discordCategories = document.getElementById('discordCategories');
+const discordLang = document.getElementById('discordLang');
 
 function renderDiscordCategories(labels, values) {
   discordCategories.innerHTML = '';
@@ -1094,6 +1095,7 @@ async function refreshDiscordConfig() {
   const data = await api('GET', '/api/discord/config');
   if (!data || data.error) return;
   discordWebhookUrl.value = data.url || '';
+  discordLang.value = data.lang === 'en' ? 'en' : 'fr';
   discordStatus.textContent = data.configured
     ? '✅ Notifications Discord activées.'
     : 'Aucun webhook configuré — colle l\'URL ci-dessus puis clique sur Enregistrer.';
@@ -1104,7 +1106,7 @@ async function refreshDiscordConfig() {
 document.getElementById('discordSaveBtn').addEventListener('click', async () => {
   const url = discordWebhookUrl.value.trim();
   if (!url) { showToast('Colle d\'abord l\'URL du webhook Discord.'); return; }
-  const r = await api('POST', '/api/discord/config', { url, categories: readDiscordCategories() });
+  const r = await api('POST', '/api/discord/config', { url, lang: discordLang.value, categories: readDiscordCategories() });
   if (r && r.ok) {
     showToast('Webhook Discord enregistré.');
     refreshDiscordConfig();

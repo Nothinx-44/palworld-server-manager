@@ -246,19 +246,19 @@ app.post('/api/setup/install', requireAuth, requireAdmin, (req, res) => {
   setupState.running = true;
   setupState.logs = [];
   activityLog.log(req.session.user.username, 'server-setup-start');
-  discord.notify(`🛠️ Installation du serveur Palworld lancée par **${req.session.user.username}**…`, 'updates');
+  discord.notify('setupStart', { user: req.session.user.username }, 'updates');
 
   serverSetup.runInstall(config, setupLog)
     .then(() => {
       activityLog.log(req.session.user.username, 'server-setup-done');
-      discord.notify('✅ Installation du serveur Palworld terminée, le dashboard est prêt à le gérer.', 'updates');
+      discord.notify('setupDone', {}, 'updates');
       setupDone({ ok: true });
     })
     .catch(err => {
       const message = String(err.message || err);
       setupLog(`ERREUR : ${message}`);
       activityLog.log(req.session.user.username, 'server-setup-error', message);
-      discord.notify(`❌ Échec de l'installation du serveur Palworld : ${message.slice(0, 200)}`, 'updates');
+      discord.notify('setupError', { error: message.slice(0, 200) }, 'updates');
       setupDone({ ok: false, error: message });
     });
 
@@ -382,7 +382,7 @@ app.post('/api/settings/file', requireAuth, requireManager, async (req, res) => 
 
   fs.writeFileSync(file, content);
   activityLog.log(req.session.user.username, 'settings-change', keys.join(', '));
-  discord.notify(`⚙️ Réglages du monde modifiés par **${req.session.user.username}** : ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}`, 'admin');
+  discord.notify('settingsChanged', { user: req.session.user.username, keys: `${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}` }, 'admin');
   res.json({ ok: true, changed: keys.length });
 });
 
@@ -469,10 +469,10 @@ async function runRestartSequence(stopMessage, waittime = 10) {
   try {
     const result = await steamUpdate.runUpdate();
     activityLog.log('scheduler', 'steam-update-check', result.updated ? 'mise à jour appliquée' : 'déjà à jour');
-    if (result.updated) discord.notify('⬆️ Le serveur a été mis à jour vers la dernière version.', 'updates');
+    if (result.updated) discord.notify('serverUpdated', {}, 'updates');
   } catch (err) {
     console.error('Vérification SteamCMD échouée:', err.message || err);
-    discord.notify(`⚠️ Vérification de mise à jour échouée, redémarrage sans update (${String(err.message || err).slice(0, 150)})`, 'updates');
+    discord.notify('updateCheckFailed', { error: String(err.message || err).slice(0, 150) }, 'updates');
   }
   try { await startService(); } catch (_) {}
 }
@@ -482,7 +482,7 @@ app.post('/api/start', requireAuth, requireManager, async (req, res) => {
   try {
     await startService();
     activityLog.log(req.session.user.username, 'start');
-    discord.notify(`▶️ Serveur démarré par **${req.session.user.username}**`, 'server');
+    discord.notify('started', { user: req.session.user.username }, 'server');
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -496,13 +496,13 @@ app.post('/api/stop', requireAuth, requireManager, async (req, res) => {
   try {
     await gracefulStop('Arrêt du serveur demandé depuis le dashboard.', waittime);
     activityLog.log(req.session.user.username, 'stop');
-    discord.notify(`⏹️ Arrêt du serveur demandé par **${req.session.user.username}**`, 'server');
+    discord.notify('stopRequested', { user: req.session.user.username }, 'server');
     res.json({ ok: true, waittime });
   } catch (err) {
     try {
       await runNssm(['stop', getServiceName()]);
       activityLog.log(req.session.user.username, 'stop-forced');
-      discord.notify(`⏹️ Arrêt forcé du serveur par **${req.session.user.username}** (API injoignable)`, 'server');
+      discord.notify('stopForcedApiUnreachable', { user: req.session.user.username }, 'server');
       res.json({ ok: true, forced: true });
     } catch (nssmErr) {
       await setAutoRestart(true); // échec de l'arrêt : ne pas laisser l'anti-crash désarmé
@@ -516,7 +516,7 @@ app.post('/api/restart', requireAuth, requireManager, async (req, res) => {
   restartInProgress = true;
   const waittime = 10;
   activityLog.log(req.session.user.username, 'restart');
-  discord.notify(`🔄 Redémarrage demandé par **${req.session.user.username}** (vérification de mise à jour incluse)…`, 'server');
+  discord.notify('restartRequested', { user: req.session.user.username }, 'server');
   res.json({ ok: true, waittime });
   try {
     await runRestartSequence('Redémarrage du serveur demandé depuis le dashboard.', waittime);
@@ -544,7 +544,7 @@ app.post('/api/kick', requireAuth, requireManager, async (req, res) => {
   try {
     await getPalworldApi().post('/v1/api/kick', { userid, message: message || 'Kick depuis le dashboard' });
     activityLog.log(req.session.user.username, 'kick', userid);
-    discord.notify(`👢 Joueur exclu par **${req.session.user.username}**`, 'admin');
+    discord.notify('playerKicked', { user: req.session.user.username }, 'admin');
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -578,7 +578,7 @@ app.post('/api/ban', requireAuth, requireManager, async (req, res) => {
     await getPalworldApi().post('/v1/api/ban', { userid });
     await bans.add(userid, name, req.session.user.username);
     activityLog.log(req.session.user.username, 'ban', name || userid);
-    discord.notify(`🔨 **${name || userid}** banni par **${req.session.user.username}**`, 'admin');
+    discord.notify('playerBanned', { name: name || userid, user: req.session.user.username }, 'admin');
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -605,7 +605,7 @@ app.post('/api/unban', requireAuth, requireManager, async (req, res) => {
     }
     await bans.remove(userid);
     activityLog.log(req.session.user.username, 'unban', userid);
-    discord.notify(`♻️ ${type === 'ip' ? 'IP débannie' : 'Joueur débanni'} par **${req.session.user.username}**`, 'admin');
+    discord.notify('unbanned', { ip: type === 'ip', user: req.session.user.username }, 'admin');
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
@@ -631,7 +631,7 @@ app.post('/api/force-stop', requireAuth, requireManager, async (req, res) => {
     await setAutoRestart(false);
     await runNssm(['stop', getServiceName()]);
     activityLog.log(req.session.user.username, 'force-stop');
-    discord.notify(`🛑 Arrêt forcé (immédiat) du serveur par **${req.session.user.username}**`, 'server');
+    discord.notify('forceStopImmediate', { user: req.session.user.username }, 'server');
     res.json({ ok: true });
   } catch (err) {
     await setAutoRestart(true); // échec : ne pas laisser l'anti-crash désarmé
@@ -661,7 +661,7 @@ app.post('/api/update/apply', requireAuth, requireManager, async (req, res) => {
   if (restartLocked()) return res.status(409).json({ error: 'restart_in_progress' });
   restartInProgress = true;
   activityLog.log(req.session.user.username, 'update-apply');
-  discord.notify(`⬆️ Mise à jour du serveur lancée par **${req.session.user.username}**…`, 'updates');
+  discord.notify('updateLaunched', { user: req.session.user.username }, 'updates');
   const wasRunning = await isServiceRunning();
   res.json({ ok: true, wasRunning });
   try {
@@ -673,9 +673,9 @@ app.post('/api/update/apply', requireAuth, requireManager, async (req, res) => {
       try {
         const result = await steamUpdate.runUpdate();
         activityLog.log('scheduler', 'steam-update-check', result.updated ? 'mise à jour appliquée' : 'déjà à jour');
-        discord.notify('⬆️ Mise à jour terminée (serveur laissé arrêté).', 'updates');
+        discord.notify('updateDoneStopped', {}, 'updates');
       } catch (err) {
-        discord.notify(`❌ Échec de la mise à jour : ${String(err.message || err).slice(0, 150)}`, 'updates');
+        discord.notify('updateFailed', { error: String(err.message || err).slice(0, 150) }, 'updates');
       }
     }
   } finally {
@@ -689,7 +689,7 @@ app.post('/api/schedule-restart', requireAuth, requireManager, (req, res) => {
   const minutes = Math.max(1, Math.min(120, parseInt(req.body && req.body.minutes, 10) || 5));
   scheduleRestart(minutes, req.session.user.username);
   activityLog.log(req.session.user.username, 'restart-scheduled', `${minutes} min`);
-  discord.notify(`🕒 Redémarrage programmé dans ${minutes} min par **${req.session.user.username}**`, 'restart');
+  discord.notify('restartScheduled', { minutes, user: req.session.user.username }, 'restart');
   res.json({ ok: true, minutes, at: scheduledRestart.at });
 });
 
@@ -699,7 +699,7 @@ app.post('/api/cancel-restart', requireAuth, requireManager, async (req, res) =>
   scheduledRestart = null;
   activityLog.log(req.session.user.username, 'restart-cancelled');
   await getPalworldApi().post('/v1/api/announce', { message: 'Redémarrage programmé annulé.' }).catch(() => {});
-  discord.notify(`✅ Redémarrage programmé annulé par **${req.session.user.username}**`, 'restart');
+  discord.notify('restartCancelled', { user: req.session.user.username }, 'restart');
   res.json({ ok: true });
 });
 
@@ -760,10 +760,10 @@ app.post('/api/backup', requireAuth, requireManager, async (req, res) => {
     const filename = await makeBackup();
     pruneBackups();
     activityLog.log(req.session.user.username, 'backup', filename);
-    discord.notify(`💾 Sauvegarde manuelle effectuée par **${req.session.user.username}**`, 'backups');
+    discord.notify('manualBackup', { user: req.session.user.username }, 'backups');
     res.json({ ok: true, filename });
   } catch (err) {
-    discord.notify(`❌ Échec de la sauvegarde manuelle : ${err.message || err}`, 'backups');
+    discord.notify('manualBackupFailed', { error: err.message || err }, 'backups');
     res.status(500).json({ error: String(err.message || err) });
   }
 });
@@ -857,8 +857,7 @@ app.post('/api/backups/:filename/restore', requireAuth, requireManager, async (r
   try {
     const { safetyFilename } = await backupRestore.restoreBackup({ backupZipPath, savePath, backupDir });
     activityLog.log(req.session.user.username, 'backup-restore', filename);
-    discord.notify(`♻️ Sauvegarde **${filename}** restaurée par **${req.session.user.username}**` +
-      (safetyFilename ? ` (monde précédent conservé dans ${safetyFilename})` : ''), 'backups');
+    discord.notify('backupRestored', { filename, user: req.session.user.username, safetyFilename }, 'backups');
     res.json({ ok: true, safetyFilename });
   } catch (err) {
     activityLog.log(req.session.user.username, 'backup-restore-error', String(err.message || err));
@@ -947,7 +946,7 @@ app.post('/api/plugins/:name/install', requireAuth, requireManager, async (req, 
   try {
     const { version, paldefenderToken } = await plugins.install(name);
     activityLog.log(req.session.user.username, 'plugin-install', `${plugins.PLUGINS[name].label} ${version}`);
-    discord.notify(`🧩 **${plugins.PLUGINS[name].label} ${version}** installé par **${req.session.user.username}**`, 'admin');
+    discord.notify('pluginInstalled', { label: plugins.PLUGINS[name].label, version, user: req.session.user.username }, 'admin');
     // PalDefender : le jeton (existant ou tout juste créé) est enregistré directement dans le
     // dashboard, pour que les Commandes Admin soient utilisables sans étape manuelle.
     if (paldefenderToken) {
@@ -1034,17 +1033,18 @@ app.get('/api/discord/config', requireAuth, requireAdmin, (req, res) => {
   res.json({
     configured: !!process.env.DISCORD_WEBHOOK_URL,
     url: process.env.DISCORD_WEBHOOK_URL || '',
+    lang: discord.getLang(),
     categories: getDiscordCategories(),
     categoryLabels: discord.CATEGORIES
   });
 });
 
 app.post('/api/discord/config', requireAuth, requireAdmin, (req, res) => {
-  const { url, categories } = req.body || {};
+  const { url, categories, lang } = req.body || {};
   if (!url || !/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(url.trim())) {
     return res.status(400).json({ error: 'invalid_webhook_url' });
   }
-  const updates = { DISCORD_WEBHOOK_URL: url.trim() };
+  const updates = { DISCORD_WEBHOOK_URL: url.trim(), DISCORD_LANG: lang === 'en' ? 'en' : 'fr' };
   if (categories && typeof categories === 'object') {
     Object.keys(discord.CATEGORIES).forEach(key => {
       updates[`DISCORD_NOTIFY_${key.toUpperCase()}`] = categories[key] === false ? 'false' : 'true';
@@ -1067,7 +1067,7 @@ app.post('/api/discord/remove', requireAuth, requireAdmin, (req, res) => {
 
 app.post('/api/discord/test', requireAuth, requireAdmin, async (req, res) => {
   if (!process.env.DISCORD_WEBHOOK_URL) return res.status(400).json({ error: 'not_configured' });
-  const sent = await discord.notify(`✅ Test réussi ! Les notifications Discord sont bien configurées pour **${req.session.user.username}**.`);
+  const sent = await discord.notify('test', { user: req.session.user.username });
   if (!sent) return res.status(502).json({ error: 'send_failed' });
   res.json({ ok: true });
 });
@@ -1094,7 +1094,7 @@ function rescheduleBackups() {
         })
         .catch(err => {
           console.error('Backup planifiée échouée:', err.message);
-          discord.notify(`❌ Sauvegarde planifiée échouée : ${err.message}`, 'backups');
+          discord.notify('scheduledBackupFailed', { error: err.message }, 'backups');
         });
     }));
   });
@@ -1119,7 +1119,7 @@ function rescheduleRestarts() {
         return;
       }
       activityLog.log('scheduler', 'restart-scheduled', `${cfg.warningMinutes} min (récurrent)`);
-      discord.notify(`🕒 Redémarrage automatique programmé dans ${cfg.warningMinutes} min…`, 'restart');
+      discord.notify('autoRestartScheduled', { minutes: cfg.warningMinutes }, 'restart');
       scheduleRestart(cfg.warningMinutes, 'scheduler');
     }));
   });
@@ -1142,10 +1142,10 @@ function checkDiskSpace() {
     if (low && !diskSpaceLow[dir]) {
       diskSpaceLow[dir] = true;
       activityLog.log('scheduler', 'disk-space-low', `${dir} — ${freeMb} Mo restants`);
-      discord.notify(`⚠️ Espace disque faible sur \`${dir}\` : ${freeMb} Mo restants (seuil ${DISK_SPACE_WARN_MB} Mo).`, 'disk');
+      discord.notify('diskLow', { dir, freeMb, thresholdMb: DISK_SPACE_WARN_MB }, 'disk');
     } else if (!low && diskSpaceLow[dir]) {
       delete diskSpaceLow[dir];
-      discord.notify(`✅ Espace disque de nouveau suffisant sur \`${dir}\` (${freeMb} Mo).`, 'disk');
+      discord.notify('diskOk', { dir, freeMb }, 'disk');
     }
     return { path: dir, freeBytes: info.freeBytes, totalBytes: info.totalBytes, low };
   });
