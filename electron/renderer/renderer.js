@@ -69,15 +69,25 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Ne remplace jamais une valeur déjà saisie par du vide : refresh() (appelé après CHAQUE tentative
+// d'installation, y compris en échec) appelait fillForm() avec le statut backend, qui n'a aucune
+// config tant qu'une installation n'a pas réussi une première fois — ça vidait silencieusement le
+// dossier d'installation tapé par l'utilisateur après un échec, qui retombait alors sur le défaut
+// D:\PalworldServer à la tentative suivante sans qu'il s'en aperçoive.
 function fillForm(current = {}) {
-  $('installDir').value = current.installDir || '';
-  $('steamCmdDir').value = current.steamCmdDir || '';
-  $('serverName').value = current.serverName || '';
-  $('maxPlayers').value = current.maxPlayers || 8;
-  $('port').value = current.port || 8211;
-  $('queryPort').value = current.queryPort || 27015;
-  $('restApiPort').value = current.restApiPort || 8212;
-  $('backupDir').value = current.backupDir || '';
+  const set = (id, value, fallback) => {
+    const el = $(id);
+    if (value) el.value = value;
+    else if (!el.value) el.value = fallback !== undefined ? fallback : '';
+  };
+  set('installDir', current.installDir);
+  set('steamCmdDir', current.steamCmdDir);
+  set('serverName', current.serverName);
+  set('maxPlayers', current.maxPlayers, 8);
+  set('port', current.port, 8211);
+  set('queryPort', current.queryPort, 27015);
+  set('restApiPort', current.restApiPort, 8212);
+  set('backupDir', current.backupDir);
 }
 
 async function refresh() {
