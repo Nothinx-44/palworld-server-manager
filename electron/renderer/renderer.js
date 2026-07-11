@@ -88,6 +88,13 @@ function fillForm(current = {}) {
   set('queryPort', current.queryPort, 27015);
   set('restApiPort', current.restApiPort, 8212);
   set('backupDir', current.backupDir);
+  // Restaure la case "serveur déjà installé" d'une installation importée : sans ça, une
+  // réinstallation traiterait le dossier du serveur comme un dossier parent (re-téléchargement
+  // de 15 Go dans un sous-dossier "Server" au lieu de réutiliser l'existant).
+  if (current.existingServer && !existingServerCheckbox.checked) {
+    existingServerCheckbox.checked = true;
+    applyExistingServerMode();
+  }
 }
 
 async function refresh() {

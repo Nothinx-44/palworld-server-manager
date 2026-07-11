@@ -43,6 +43,18 @@ function ensureBaseEnv() {
   if (Object.keys(updates).length) updateEnvFile(updates);
 }
 
+// Sérialise les opérations qui touchent aux services/fichiers (installation complète,
+// (ré)installation des services, mise à jour automatique au démarrage) : la mise à jour auto
+// tourne en arrière-plan dès l'ouverture, et un clic sur "Lancer l'installation" ou
+// "(Ré)installer" pendant qu'elle est en cours ferait courir deux séquences NSSM + copies de
+// fichiers l'une sur l'autre (suppression/recréation du même service en parallèle).
+let operationLock = Promise.resolve();
+function withOperationLock(fn) {
+  const run = operationLock.then(fn);
+  operationLock = run.catch(() => {}); // une opération échouée ne doit pas bloquer les suivantes
+  return run;
+}
+
 // Le service dashboard exécute node.exe et server.js depuis HOME/app, que materializeRuntime()
 // écrase à chaque (ré)installation. Windows verrouille un exécutable en cours d'utilisation :
 // écraser runtime/node.exe pendant que le service tourne encore échoue (EBUSY/EPERM).
@@ -92,6 +104,9 @@ function getDeployedDashboardVersion(appDir) {
 // se soucier de cliquer sur "(Ré)installer" après avoir juste remplacé l'.exe par une nouvelle
 // version — jusqu'ici, la mise à jour du service exigeait cette action manuelle explicite.
 async function autoUpdateDashboardIfNeeded() {
+  // En développement, HOME/app n'existe pas (le service tourne sur le projet directement) :
+  // la version déployée serait illisible et la "mise à jour" se déclencherait à chaque ouverture.
+  if (!app.isPackaged) return;
   const { registered } = await dashboardService.status();
   if (!registered) return; // rien à mettre à jour tant que le service n'a jamais été installé
 
@@ -99,13 +114,15 @@ async function autoUpdateDashboardIfNeeded() {
   const deployedVersion = getDeployedDashboardVersion(appDir);
   if (deployedVersion && !isVersionNewer(CURRENT_VERSION, deployedVersion)) return; // déjà à jour
 
-  sendLog(`=== Mise à jour automatique du service dashboard détectée (v${deployedVersion || '?'} → v${CURRENT_VERSION}) ===`);
-  await withDashboardStopped(async () => {
-    const { appDir: newAppDir, nodeExe, serverJs } = await runtime.materializeRuntime(
-      { appRoot: APP_ROOT, home: HOME, packaged: app.isPackaged }, sendLog);
-    await dashboardService.install({ nodeExe, serverJs, appDir: newAppDir, home: HOME }, sendLog);
+  await withOperationLock(async () => {
+    sendLog(`=== Mise à jour automatique du service dashboard détectée (v${deployedVersion || '?'} → v${CURRENT_VERSION}) ===`);
+    await withDashboardStopped(async () => {
+      const { appDir: newAppDir, nodeExe, serverJs } = await runtime.materializeRuntime(
+        { appRoot: APP_ROOT, home: HOME, packaged: app.isPackaged }, sendLog);
+      await dashboardService.install({ nodeExe, serverJs, appDir: newAppDir, home: HOME }, sendLog);
+    });
+    sendLog('=== Mise à jour automatique terminée ===');
   });
-  sendLog('=== Mise à jour automatique terminée ===');
 }
 
 let mainWindow;
@@ -163,23 +180,25 @@ ipcMain.handle('setup:install', async (_evt, body) => {
     if (input.adminPassword && input.adminPassword.length < 6) {
       throw new Error('Mot de passe admin : 6 caractères minimum si renseigné.');
     }
-    sendLog('=== Préparation ===');
-    // ensureNssm télécharge NSSM et met NSSM_PATH à jour : à faire AVANT normalizeConfig, qui
-    // capture nssmPath depuis process.env. Sinon la config figerait le C:\nssm\nssm.exe par défaut.
-    await ensureNssm(sendLog);
-    const config = serverSetup.normalizeConfig(input);
-    await serverSetup.runInstall(config, sendLog);
+    return await withOperationLock(async () => {
+      sendLog('=== Préparation ===');
+      // ensureNssm télécharge NSSM et met NSSM_PATH à jour : à faire AVANT normalizeConfig, qui
+      // capture nssmPath depuis process.env. Sinon la config figerait le C:\nssm\nssm.exe par défaut.
+      await ensureNssm(sendLog);
+      const config = serverSetup.normalizeConfig(input);
+      await serverSetup.runInstall(config, sendLog);
 
-    sendLog('=== Configuration du service du dashboard ===');
-    await withDashboardStopped(async () => {
-      const { appDir, nodeExe, serverJs } = await runtime.materializeRuntime(
-        { appRoot: APP_ROOT, home: HOME, packaged: app.isPackaged }, sendLog);
-      await dashboardService.install({ nodeExe, serverJs, appDir, home: HOME }, sendLog);
+      sendLog('=== Configuration du service du dashboard ===');
+      await withDashboardStopped(async () => {
+        const { appDir, nodeExe, serverJs } = await runtime.materializeRuntime(
+          { appRoot: APP_ROOT, home: HOME, packaged: app.isPackaged }, sendLog);
+        await dashboardService.install({ nodeExe, serverJs, appDir, home: HOME }, sendLog);
+      });
+      ensureBaseEnv();
+
+      sendLog('=== Terminé : le dashboard est démarré, crée maintenant un compte pour t\'y connecter ===');
+      return { ok: true };
     });
-    ensureBaseEnv();
-
-    sendLog('=== Terminé : le dashboard est démarré, crée maintenant un compte pour t\'y connecter ===');
-    return { ok: true };
   } catch (err) {
     sendLog(`ERREUR : ${err.message || err}`);
     return { ok: false, error: String(err.message || err) };
@@ -190,17 +209,19 @@ ipcMain.handle('services:install', async () => {
   try {
     const saved = serverSetup.getSavedConfig();
     if (!saved) throw new Error('Aucune configuration enregistrée — fais d\'abord une installation complète (étape 2).');
-    sendLog('=== (Ré)installation des services ===');
-    await ensureNssm(sendLog);
-    await serverSetup.installGameService(saved, sendLog);
-    await withDashboardStopped(async () => {
-      const { appDir, nodeExe, serverJs } = await runtime.materializeRuntime(
-        { appRoot: APP_ROOT, home: HOME, packaged: app.isPackaged }, sendLog);
-      await dashboardService.install({ nodeExe, serverJs, appDir, home: HOME }, sendLog);
+    return await withOperationLock(async () => {
+      sendLog('=== (Ré)installation des services ===');
+      await ensureNssm(sendLog);
+      await serverSetup.installGameService(saved, sendLog);
+      await withDashboardStopped(async () => {
+        const { appDir, nodeExe, serverJs } = await runtime.materializeRuntime(
+          { appRoot: APP_ROOT, home: HOME, packaged: app.isPackaged }, sendLog);
+        await dashboardService.install({ nodeExe, serverJs, appDir, home: HOME }, sendLog);
+      });
+      ensureBaseEnv();
+      sendLog('=== Services installés ===');
+      return { ok: true };
     });
-    ensureBaseEnv();
-    sendLog('=== Services installés ===');
-    return { ok: true };
   } catch (err) {
     sendLog(`ERREUR : ${err.message || err}`);
     return { ok: false, error: String(err.message || err) };
@@ -219,12 +240,12 @@ ipcMain.handle('services:uninstall', async () => {
 
 ipcMain.handle('dashboard:start', async () => {
   try { await dashboardService.start(); return { ok: true }; }
-  catch (e) { return { ok: false, error: String(e) }; }
+  catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
 ipcMain.handle('dashboard:stop', async () => {
   try { await dashboardService.stop(); return { ok: true }; }
-  catch (e) { return { ok: false, error: String(e) }; }
+  catch (e) { return { ok: false, error: String(e.message || e) }; }
 });
 
 ipcMain.handle('dashboard:open', async () => {
@@ -276,7 +297,13 @@ app.whenReady().then(() => {
   });
   // Non bloquant : la fenêtre s'affiche immédiatement, la mise à jour (si nécessaire) tourne en
   // parallèle et son avancement apparaît dans le journal comme n'importe quelle autre opération.
-  autoUpdateDashboardIfNeeded().catch(err => crashLog.reportFatal('Échec de la mise à jour automatique du dashboard', err));
+  // Un échec ici n'est PAS fatal (le launcher reste utilisable, l'utilisateur peut réinstaller
+  // manuellement) : journalisé et affiché dans le journal, sans boîte de dialogue d'erreur fatale
+  // qui reviendrait à chaque ouverture tant que la cause persiste.
+  autoUpdateDashboardIfNeeded().catch(err => {
+    sendLog(`La mise à jour automatique du dashboard a échoué : ${err.message || err}`);
+    sendLog('Tu peux la relancer via le bouton "(Ré)installer" de la section Services Windows.');
+  });
 }).catch(err => crashLog.reportFatal('Échec du démarrage', err));
 
 app.on('window-all-closed', () => {
