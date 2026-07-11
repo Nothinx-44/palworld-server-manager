@@ -83,6 +83,7 @@ function fillForm(current = {}) {
 async function refresh() {
   const status = await window.api.getStatus();
   if (!status) return;
+  if (status.version) $('versionBadge').textContent = `v${status.version}`;
   renderChecklist(status);
   renderDashPill(status);
   renderShare(status);

@@ -146,7 +146,8 @@ ipcMain.handle('setup:getStatus', async () => {
     home: HOME,
     port: getPort(),
     localIp: getLocalIp(),
-    accounts: users.listUsers()
+    accounts: users.listUsers(),
+    version: CURRENT_VERSION
   };
 });
 
