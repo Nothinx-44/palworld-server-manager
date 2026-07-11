@@ -116,6 +116,28 @@ header.top h1 {
   vertical-align: middle;
   margin-left: 8px;
 }
+/* Toujours visible : version installée. Devient orange + change de texte quand une mise à jour
+   est disponible sur GitHub (lib/dashboardUpdate.js, vérifié côté serveur, cache 6h). */
+.version-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 20px;
+  vertical-align: middle;
+  margin-left: 6px;
+  text-decoration: none;
+  cursor: default;
+}
+.version-badge.update-available {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  cursor: pointer;
+}
 .logout-link {
   color: var(--muted);
   font-size: 0.85rem;

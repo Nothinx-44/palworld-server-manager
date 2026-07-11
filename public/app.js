@@ -252,13 +252,22 @@ async function refreshDiskSpace() {
   banner.style.display = 'block';
 }
 
-// Bannière "nouvelle version disponible" (vérifiée une fois par session, cache 6h côté serveur)
+// Badge de version dans l'en-tête : toujours affiché (vX.Y.Z installée), et transformé en lien
+// "mise à jour disponible" quand une nouvelle release existe sur GitHub (vérifié côté serveur,
+// cache 6h — lib/dashboardUpdate.js). Un seul élément couvre les deux besoins (version actuelle +
+// avertissement), pas de bannière séparée à gérer.
 async function refreshDashboardUpdate() {
   const data = await api('GET', '/api/dashboard/update');
-  if (!data || !data.updateAvailable) return;
-  const banner = document.getElementById('updateBanner');
-  banner.innerHTML = `⬆️ Nouvelle version du dashboard disponible : <strong>v${escapeHtml(data.latest)}</strong> (tu utilises la v${escapeHtml(data.current)}) — <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener">télécharger sur GitHub</a>`;
-  banner.style.display = 'block';
+  if (!data) return;
+  const badge = document.getElementById('versionBadge');
+  if (data.updateAvailable) {
+    badge.textContent = `⬆️ v${data.current} → v${data.latest} disponible`;
+    badge.href = data.url;
+    badge.classList.add('update-available');
+  } else {
+    badge.textContent = `v${data.current}`;
+    badge.classList.remove('update-available');
+  }
 }
 
 async function refreshNetworkInfo() {

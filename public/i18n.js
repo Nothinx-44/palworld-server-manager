@@ -410,6 +410,7 @@
     [/^Jeton importé \((.+)\)$/, 'Token imported ($1)'],
     [/^Jeton importé \((.+)\) — pense à mettre Enabled: true dans RESTConfig\.json puis à redémarrer le serveur$/, 'Token imported ($1) — remember to set Enabled: true in RESTConfig.json then restart the server'],
     [/^Échec : (.+)$/, 'Failed: $1'],
+    [/^⬆️ (v[\d.]+) → (v[\d.]+) disponible$/, '⬆️ $1 → $2 available'],
     [/^Bannir (.+) \? Il sera déconnecté et ne pourra plus se reconnecter\.$/, 'Ban $1? They will be disconnected and unable to reconnect.'],
     [/^Bannir (.+) \? Il sera déconnecté \(s'il est en ligne\) et ne pourra plus se reconnecter\.$/, "Ban $1? They will be disconnected (if online) and unable to reconnect."],
     [/^— banni le (.+)$/, '— banned on $1'],
