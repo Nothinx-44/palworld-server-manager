@@ -3,6 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+// Corrige un crash silencieux rapporté par plusieurs utilisateurs (issue GitHub #2) : la fenêtre
+// s'ouvre puis disparaît immédiatement, avec "render-process-gone: launch-failed" dans le log.
+// Cause identifiée : le bac à sable (sandbox) Chromium d'Electron échoue à s'initialiser sur
+// certaines machines quand le process parent tourne déjà en administrateur (requis ici pour créer
+// les services Windows/la règle de pare-feu) — souvent combiné à un antivirus qui intercepte la
+// création de process. Un utilisateur a confirmé que ces mêmes options en ligne de commande
+// résolvent le problème. Risque acceptable ici : contenu 100 % local (renderer/index.html), aucun
+// contenu web distant ni non fiable n'est jamais chargé dans cette fenêtre.
+// DOIT être appelé avant app.whenReady().
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+
 // --- Dossier de base inscriptible, partagé avec le service dashboard ---
 // C:\ProgramData est lisible par le compte LocalSystem sous lequel tourne le service NSSM, à la
 // différence d'un dossier sous le profil d'un utilisateur. On le fixe AVANT de requérir les
