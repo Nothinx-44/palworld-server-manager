@@ -11,7 +11,7 @@ const rateLimit = require('express-rate-limit');
 const archiver = require('archiver');
 const cron = require('node-cron');
 
-const { getPalworldApi, runNssm, gracefulStop, getServiceName, isServiceRunning } = require('./lib/palworldClient');
+const { getPalworldApi, runNssm, gracefulStop, getServiceName, isServiceRunning, killOrphanGameProcesses } = require('./lib/palworldClient');
 const { JsonSessionStore } = require('./lib/sessionStore');
 const discord = require('./lib/discord');
 const activityLog = require('./lib/activityLog');
@@ -381,6 +381,14 @@ app.post('/api/settings/file', requireAuth, requireManager, async (req, res) => 
   if (!intact) return res.status(500).json({ error: 'integrity_check_failed' });
 
   fs.writeFileSync(file, content);
+  // AdminPassword ici alimente aussi PALWORLD_API_PASSWORD (.env) : c'est ce que le dashboard et
+  // le watchdog utilisent pour s'authentifier auprès de l'API REST Palworld. Sans cette
+  // synchronisation, changer le mot de passe admin ici désynchronise silencieusement les deux,
+  // et TOUS les appels API échouent ensuite en 401 (le dashboard affiche "hors ligne" en
+  // permanence, même serveur relancé, jusqu'à ce qu'on recolle les deux valeurs à la main).
+  if (Object.prototype.hasOwnProperty.call(changes, 'AdminPassword')) {
+    updateEnvFile({ PALWORLD_API_PASSWORD: String(changes.AdminPassword) });
+  }
   activityLog.log(req.session.user.username, 'settings-change', keys.join(', '));
   discord.notify('settingsChanged', { user: req.session.user.username, keys: `${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}` }, 'admin');
   res.json({ ok: true, changed: keys.length });
@@ -464,8 +472,11 @@ async function runRestartSequence(stopMessage, waittime = 10) {
     try { await runNssm(['stop', getServiceName()]); } catch (_) {}
   }
   await sleep((waittime + 5) * 1000);
-  // S'assure que le process est bien sorti avant que SteamCMD ne touche aux fichiers.
+  // S'assure que le process est bien sorti avant que SteamCMD ne touche aux fichiers — y compris
+  // l'enfant PalServer-Win64-Shipping-Cmd.exe que `nssm stop` seul peut laisser orphelin (même
+  // souci que dans watchdog.js), sans quoi SteamCMD peut échouer à écrire des fichiers verrouillés.
   try { await runNssm(['stop', getServiceName()]); } catch (_) {}
+  await killOrphanGameProcesses();
   try {
     const result = await steamUpdate.runUpdate();
     activityLog.log('scheduler', 'steam-update-check', result.updated ? 'mise à jour appliquée' : 'déjà à jour');
@@ -630,6 +641,7 @@ app.post('/api/force-stop', requireAuth, requireManager, async (req, res) => {
     // l'API de jeu quand on force l'arrêt justement parce que le serveur ne répond plus.
     await setAutoRestart(false);
     await runNssm(['stop', getServiceName()]);
+    await killOrphanGameProcesses();
     activityLog.log(req.session.user.username, 'force-stop');
     discord.notify('forceStopImmediate', { user: req.session.user.username }, 'server');
     res.json({ ok: true });
