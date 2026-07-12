@@ -1,11 +1,18 @@
 const $ = id => document.getElementById(id);
 
-// Sélecteur de langue (i18n.js gère le reste automatiquement)
+// Sélecteur de langue : cycle FR → EN → 中文 → ES (i18n.js gère la traduction automatiquement).
+// Même détection de langue par défaut que i18n.js.
+const LANGS = ['fr', 'en', 'zh', 'es'];
+const LANG_BTN_LABELS = { fr: '🌐 FR', en: '🌐 EN', zh: '🌐 中文', es: '🌐 ES' };
 const langToggle = document.getElementById('langToggle');
-const currentLang = localStorage.getItem('lang') || ((navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en');
-langToggle.textContent = currentLang === 'fr' ? '🌐 FR' : '🌐 EN';
+const navLang = (navigator.language || '').toLowerCase();
+const detectedLang = navLang.startsWith('fr') ? 'fr' : navLang.startsWith('zh') ? 'zh' : navLang.startsWith('es') ? 'es' : 'en';
+const storedLang = localStorage.getItem('lang');
+const currentLang = LANGS.includes(storedLang) ? storedLang : detectedLang;
+langToggle.textContent = LANG_BTN_LABELS[currentLang];
+langToggle.title = 'Language';
 langToggle.addEventListener('click', () => {
-  const next = currentLang === 'fr' ? 'en' : 'fr';
+  const next = LANGS[(LANGS.indexOf(currentLang) + 1) % LANGS.length];
   localStorage.setItem('lang', next);
   location.reload();
 });

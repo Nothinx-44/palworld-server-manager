@@ -928,8 +928,11 @@ const PRESET_MESSAGES = [
     const btn = document.createElement('button');
     btn.className = 'preset-btn';
     btn.type = 'button';
-    btn.textContent = msg.length > 34 ? msg.slice(0, 32) + '…' : msg;
-    btn.title = msg;
+    // Traduit AVANT de tronquer : un texte déjà tronqué ("Sauvegarde imminente, tenez-v…") ne
+    // matche plus aucune clé du dictionnaire i18n et resterait en français dans les autres langues.
+    const label = window.t ? window.t(msg) : msg;
+    btn.textContent = label.length > 34 ? label.slice(0, 32) + '…' : label;
+    btn.title = label;
     btn.addEventListener('click', async () => {
       const r = await api('POST', '/api/announce', { message: msg });
       showToast(r && r.ok ? 'Annonce envoyée' : 'Échec de l\'annonce');
@@ -1104,7 +1107,7 @@ async function refreshDiscordConfig() {
   const data = await api('GET', '/api/discord/config');
   if (!data || data.error) return;
   discordWebhookUrl.value = data.url || '';
-  discordLang.value = data.lang === 'en' ? 'en' : 'fr';
+  discordLang.value = ['fr', 'en', 'zh', 'es'].includes(data.lang) ? data.lang : 'fr';
   discordStatus.textContent = data.configured
     ? '✅ Notifications Discord activées.'
     : 'Aucun webhook configuré — colle l\'URL ci-dessus puis clique sur Enregistrer.';

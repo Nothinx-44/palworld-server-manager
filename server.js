@@ -1044,7 +1044,7 @@ app.post('/api/discord/config', requireAuth, requireAdmin, (req, res) => {
   if (!url || !/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(url.trim())) {
     return res.status(400).json({ error: 'invalid_webhook_url' });
   }
-  const updates = { DISCORD_WEBHOOK_URL: url.trim(), DISCORD_LANG: lang === 'en' ? 'en' : 'fr' };
+  const updates = { DISCORD_WEBHOOK_URL: url.trim(), DISCORD_LANG: discord.SUPPORTED_LANGS.includes(lang) ? lang : 'fr' };
   if (categories && typeof categories === 'object') {
     Object.keys(discord.CATEGORIES).forEach(key => {
       updates[`DISCORD_NOTIFY_${key.toUpperCase()}`] = categories[key] === false ? 'false' : 'true';
