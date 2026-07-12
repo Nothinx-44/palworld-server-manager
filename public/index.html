@@ -151,6 +151,10 @@
         <h2>Carte en direct</h2>
         <canvas id="mapCanvas"></canvas>
         <div class="map-controls">
+          <div class="map-layer-switch">
+            <button type="button" class="action map-layer-btn active" data-layer="world">Île principale</button>
+            <button type="button" class="action map-layer-btn" data-layer="tree">Île de l'Arbre</button>
+          </div>
           <span class="map-hint">Molette : zoom — Glisser : déplacer.</span>
         </div>
       </div>
@@ -414,5 +418,14 @@
   <script src="/i18n.js"></script>
   <script src="/app.js"></script>
   <script src="/map.js"></script>
+  <script>
+    document.querySelectorAll('.map-layer-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.map-layer-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        window.setMapLayer(btn.dataset.layer);
+      });
+    });
+  </script>
 </body>
 </html>

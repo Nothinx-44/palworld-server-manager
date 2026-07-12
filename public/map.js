@@ -1,6 +1,6 @@
 // Carte en direct : positions et pseudos des joueurs (API REST location_x/y), zoom/pan,
-// regroupement des joueurs proches. Fond : public/map.jpg (image couvrant les coordonnées
-// carte -1000..1000), sinon grille de secours si le fichier est absent.
+// regroupement des joueurs proches. Fond : public/map-world.jpg ou public/map-tree.jpg
+// (bascule via #mapLayerSelect), sinon grille de secours si le fichier est absent.
 (function () {
   const canvas = document.getElementById('mapCanvas');
   if (!canvas) return;
@@ -16,12 +16,25 @@
   const view = { x: 0, y: 0, scale: 0.28 };
   let players = [];
 
+  // Île de l'Arbre (Sakurajima) : coordonnées séparées de l'île principale, les joueurs qui n'y
+  // sont pas ne s'affichent donc que sur la carte "world".
+  const MAP_LAYERS = { world: '/map-world.jpg', tree: '/map-tree.jpg' };
+  let currentLayer = 'world';
+
   // Image de fond optionnelle
   const mapImage = new Image();
   let mapImageReady = false;
   mapImage.onload = () => { mapImageReady = true; draw(); };
   mapImage.onerror = () => { mapImageReady = false; }; // pas d'image fournie : on garde la grille
-  mapImage.src = '/map.jpg';
+  mapImage.src = MAP_LAYERS[currentLayer];
+
+  window.setMapLayer = layer => {
+    if (!MAP_LAYERS[layer] || layer === currentLayer) return;
+    currentLayer = layer;
+    mapImageReady = false;
+    mapImage.src = MAP_LAYERS[currentLayer];
+    draw();
+  };
 
   // Coordonnées monde (API REST) -> coordonnées carte du jeu (wx=location_x, wy=location_y ;
   // axes échangés, voir commentaire sur TRANSFORM ci-dessus).

@@ -466,6 +466,9 @@ select.role-select {
 .map-controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .map-controls .map-hint { font-size: 0.78rem; margin-left: auto; }
 .map-controls code { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); }
+.map-layer-switch { display: flex; gap: 8px; }
+.map-layer-btn { padding: 6px 12px; font-size: 0.82rem; }
+.map-layer-btn.active { background: var(--accent); color: #1a1408; border-color: var(--accent); }
 
 .toast {
   position: fixed;
