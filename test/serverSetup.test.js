@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { setIniOption, parseIniOptions } = require('../lib/serverSetup');
+const { setIniOption, parseIniOptions, normalizeConfig } = require('../lib/serverSetup');
 
 const SAMPLE = 'OptionSettings=(Difficulty=None,ServerName="Default Palworld Server",PublicPort=8211,RESTAPIEnabled=False,RESTAPIPort=8212,AdminPassword="")';
 
@@ -50,6 +50,17 @@ test('parseIniOptions découpe les clés/valeurs en respectant les virgules entr
 
 test('parseIniOptions renvoie null si OptionSettings est absent', () => {
   assert.strictEqual(parseIniOptions('[/Script/Pal.PalGameWorldSettings]\n'), null);
+});
+
+test('normalizeConfig conserve les arguments de lancement custom (issue #5)', () => {
+  const cfg = normalizeConfig({ adminPassword: 'secret1', extraArgs: '-publiclobby -log' });
+  assert.strictEqual(cfg.extraArgs, '-publiclobby -log');
+});
+
+test('normalizeConfig assainit extraArgs (retire les sauts de ligne) et défaut vide', () => {
+  assert.strictEqual(normalizeConfig({ adminPassword: 'secret1' }).extraArgs, '');
+  const cfg = normalizeConfig({ adminPassword: 'secret1', extraArgs: '  -a\n-b\r\n-c  ' });
+  assert.strictEqual(cfg.extraArgs, '-a -b -c');
 });
 
 test('aller-retour : parseIniOptions puis setIniOption préserve le format', () => {

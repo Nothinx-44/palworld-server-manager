@@ -92,6 +92,7 @@ function fillForm(current = {}) {
   set('queryPort', current.queryPort, 27015);
   set('restApiPort', current.restApiPort, 8212);
   set('backupDir', current.backupDir);
+  set('extraArgs', current.extraArgs);
   // Restaure la case "serveur déjà installé" d'une installation importée : sans ça, une
   // réinstallation traiterait le dossier du serveur comme un dossier parent (re-téléchargement
   // de 15 Go dans un sous-dossier "Server" au lieu de réutiliser l'existant).
@@ -160,7 +161,8 @@ $('setupForm').addEventListener('submit', async (e) => {
     port: $('port').value,
     queryPort: $('queryPort').value,
     restApiPort: $('restApiPort').value,
-    backupDir: $('backupDir').value.trim()
+    backupDir: $('backupDir').value.trim(),
+    extraArgs: $('extraArgs').value.trim()
   };
   $('installBtn').disabled = true;
   $('logPanel').style.display = 'block';

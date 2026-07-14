@@ -383,6 +383,8 @@
     ', crée les services Windows (serveur + dashboard) et la règle de pare-feu. NSSM est téléchargé automatiquement.': [', creates Windows services (server + dashboard) and the firewall rule. NSSM is downloaded automatically.', '，创建 Windows 服务（服务器 + 仪表盘）及防火墙规则。NSSM 会自动下载。', ', crea los servicios de Windows (servidor + panel) y la regla del firewall. NSSM se descarga automáticamente.'],
     'Dossier d\'installation': ['Install folder', '安装文件夹', 'Carpeta de instalación'],
     'ex: D:\\PalworldServer': ['e.g. D:\\PalworldServer', '例：D:\\PalworldServer', 'ej.: D:\\PalworldServer'],
+    'Arguments de lancement supplémentaires (avancé, optionnel)': ['Additional launch arguments (advanced, optional)', '额外启动参数（高级，可选）', 'Argumentos de lanzamiento adicionales (avanzado, opcional)'],
+    'ex: -publiclobby -NoAsyncLoadingThread': ['e.g. -publiclobby -NoAsyncLoadingThread', '例：-publiclobby -NoAsyncLoadingThread', 'ej.: -publiclobby -NoAsyncLoadingThread'],
     'ex: Chez les copains': ['e.g. My Friends Server', '例：朋友们的服务器', 'ej.: El server de los amigos'],
     'Parcourir…': ['Browse…', '浏览…', 'Examinar…'],
     'Mot de passe serveur': ['Server password', '服务器密码', 'Contraseña del servidor'],
