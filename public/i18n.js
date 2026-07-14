@@ -80,6 +80,8 @@
     'Monde sauvegardé': ['World saved', '世界已保存', 'Mundo guardado'],
     'Redémarrage annulé': ['Restart cancelled', '重启已取消', 'Reinicio cancelado'],
     'Aucun redémarrage à annuler': ['No restart to cancel', '没有可取消的重启', 'No hay reinicio que cancelar'],
+    'Échec de la programmation': ['Scheduling failed', '计划失败', 'Error al programar'],
+    'Sauvegarde puis arrêt en cours…': ['Saving then stopping…', '正在保存并停止…', 'Guardando y deteniendo…'],
     'Impossible : un redémarrage est déjà en cours': ['Not possible: a restart is already in progress', '无法执行：已有重启正在进行', 'No es posible: ya hay un reinicio en curso'],
     'Arrêter le serveur ? Les joueurs connectés seront déconnectés.': ['Stop the server? Connected players will be disconnected.', '停止服务器？在线玩家将被断开连接。', '¿Detener el servidor? Los jugadores conectados serán desconectados.'],
     'Redémarrer le serveur ? Les joueurs connectés seront déconnectés quelques instants.': ['Restart the server? Connected players will be disconnected for a moment.', '重启服务器？在线玩家将短暂断开连接。', '¿Reiniciar el servidor? Los jugadores conectados se desconectarán unos instantes.'],
@@ -140,6 +142,8 @@
     'API PalDefender non configurée': ['PalDefender API not configured', 'PalDefender API 未配置', 'API de PalDefender no configurada'],
     // Carte
     'Carte en direct': ['Live map', '实时地图', 'Mapa en vivo'],
+    'Île principale': ['Main Island', '主岛', 'Isla principal'],
+    'Île de l\'Arbre': ['Tree Island', '巨树岛', 'Isla del Árbol'],
     'Molette : zoom — Glisser : déplacer.': ['Wheel: zoom — Drag: pan.', '滚轮：缩放 — 拖动：平移。', 'Rueda: zoom — Arrastrar: mover.'],
     // Activité
     'Historique des joueurs': ['Player history', '玩家历史', 'Historial de jugadores'],
@@ -494,6 +498,7 @@
     [/ a modifié le planning des sauvegardes(?=$| — )/, ' changed the backup schedule', ' 修改了备份计划', ' cambió la programación de copias'],
     [/ a modifié le planning de redémarrage(?=$| — )/, ' changed the restart schedule', ' 修改了重启计划', ' cambió la programación de reinicio'],
     [/ a restauré une sauvegarde(?=$| — )/, ' restored a backup', ' 恢复了一个备份', ' restauró una copia'],
+    [/ échec de la sauvegarde planifiée(?=$| — )/, ' scheduled backup failed', ' 计划备份失败', ' fallo en la copia programada'],
     [/ a échoué à restaurer une sauvegarde(?=$| — )/, ' failed to restore a backup', ' 恢复备份失败', ' falló al restaurar una copia'],
     [/ a importé une sauvegarde(?=$| — )/, ' imported a backup', ' 导入了一个备份', ' importó una copia'],
     [/ a activé la console serveur(?=$| — )/, ' enabled the server console', ' 启用了服务器控制台', ' activó la consola del servidor'],

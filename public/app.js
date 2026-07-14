@@ -24,6 +24,18 @@ function showToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
+// Message d'échec enrichi : le libellé (traduit via i18n) suivi du VRAI message d'erreur renvoyé
+// par le serveur quand c'en est un lisible (phrase). Les codes techniques courts déjà convertis en
+// messages clairs par les appelants (server_running, not_configured, restart_in_progress…) ne sont
+// pas ré-affichés bruts. Objectif : ne plus jamais masquer la cause réelle derrière un « Échec »
+// générique — l'utilisateur (ou l'admin) voit tout de suite ce qui ne va pas.
+function failMsg(label, r) {
+  const e = r && r.error;
+  const hasDetail = typeof e === 'string' && e && !/^[a-z0-9_.]+$/.test(e);
+  const base = window.t ? window.t(label) : label;
+  return hasDetail ? `${base} : ${e}` : base;
+}
+
 async function api(method, url, body) {
   const res = await fetch(url, {
     method,
@@ -145,7 +157,7 @@ function renderPlayers(players) {
       if (!confirm('Exclure ce joueur du serveur ?')) return;
       const r = await api('POST', '/api/kick', { userid: btn.dataset.userid });
       if (r && r.ok) { showToast('Joueur exclu'); refreshStatus(); }
-      else showToast('Échec du kick');
+      else showToast(failMsg('Échec du kick', r));
     });
   });
   document.querySelectorAll('.ban-btn').forEach(btn => {
@@ -153,7 +165,7 @@ function renderPlayers(players) {
       if (!confirm(`Bannir ${btn.dataset.name || 'ce joueur'} ? Il sera déconnecté et ne pourra plus se reconnecter.`)) return;
       const r = await api('POST', '/api/ban', { userid: btn.dataset.userid, name: btn.dataset.name });
       if (r && r.ok) { showToast('Joueur banni'); refreshStatus(); refreshBans(); refreshActivity(); }
-      else showToast('Échec du ban');
+      else showToast(failMsg('Échec du ban', r));
     });
   });
 }
@@ -179,7 +191,7 @@ async function refreshBans() {
     btn.addEventListener('click', async () => {
       const r = await api('POST', '/api/unban', { userid: b.userId, type: b.type });
       if (r && r.ok) { showToast(b.type === 'ip' ? 'IP débannie' : 'Joueur débanni'); refreshBans(); refreshActivity(); }
-      else showToast('Échec du déban');
+      else showToast(failMsg('Échec du déban', r));
     });
     li.appendChild(btn);
     list.appendChild(li);
@@ -230,7 +242,7 @@ async function refreshBackups() {
         showToast(
           r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord'
           : r && r.error === 'not_configured' ? 'SAVE_PATH/BACKUP_DIR non configurés'
-          : 'Échec de la restauration');
+          : failMsg('Échec de la restauration', r));
       }
     });
   });
@@ -318,7 +330,7 @@ async function installPlugin(name, label) {
     refreshActivity();
     if (name === 'paldefender') refreshPaldefenderApiStatus();
   } else {
-    showToast(r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord' : `Échec de l'installation de ${label}`);
+    showToast(r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord' : failMsg(`Échec de l'installation de ${label}`, r));
   }
   refreshPlugins();
 }
@@ -327,7 +339,7 @@ async function uninstallPlugin(name, label) {
   if (!confirm(`Désinstaller ${label} ? Le serveur doit être éteint.`)) return;
   const r = await api('POST', `/api/plugins/${name}/uninstall`, {});
   if (r && r.ok) { showToast(`${label} désinstallé`); refreshActivity(); }
-  else showToast(r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord' : `Échec de la désinstallation de ${label}`);
+  else showToast(r && r.error === 'server_running' ? 'Impossible : arrête le serveur d\'abord' : failMsg(`Échec de la désinstallation de ${label}`, r));
   refreshPlugins();
 }
 
@@ -447,6 +459,7 @@ function renderActivityPage() {
     'backup-schedule-change': 'a modifié le planning des sauvegardes',
     'restart-schedule-change': 'a modifié le planning de redémarrage',
     'backup-restore': 'a restauré une sauvegarde',
+    'backup-failed': 'échec de la sauvegarde planifiée',
     'backup-import': 'a importé une sauvegarde',
     'console-enable': 'a activé la console serveur',
     'backup-restore-error': 'a échoué à restaurer une sauvegarde',
@@ -537,7 +550,7 @@ document.getElementById('consoleEnableBtn').addEventListener('click', async () =
   if (r && r.ok) showToast('Console activée — redémarre le serveur pour qu\'elle commence à enregistrer');
   else showToast(r && r.error === 'service_not_registered'
     ? 'Service Windows introuvable — (ré)installe les services depuis le lanceur'
-    : 'Échec de l\'activation de la console');
+    : failMsg('Échec de l\'activation de la console', r));
   refreshActivity();
 });
 
@@ -581,7 +594,7 @@ function showPlayerMenu(anchorEl, userId, name) {
       if (!confirm(`Bannir ${name} ? Il sera déconnecté (s'il est en ligne) et ne pourra plus se reconnecter.`)) return;
       const r = await api('POST', '/api/ban', { userid: userId, name });
       if (r && r.ok) { showToast('Joueur banni'); refreshStatus(); refreshBans(); refreshActivity(); }
-      else showToast('Échec du ban');
+      else showToast(failMsg('Échec du ban', r));
     });
     menu.appendChild(banBtn);
   }
@@ -640,7 +653,8 @@ async function refreshPlayerHistory() {
 }
 
 function actionError(r, fallback) {
-  return r && r.error === 'restart_in_progress' ? 'Impossible : un redémarrage est déjà en cours' : fallback;
+  if (r && r.error === 'restart_in_progress') return 'Impossible : un redémarrage est déjà en cours';
+  return failMsg(fallback, r);
 }
 
 document.getElementById('startBtn').addEventListener('click', async () => {
@@ -687,7 +701,7 @@ document.getElementById('importBackupFile').addEventListener('change', async e =
         r && r.error === 'not_a_zip' ? 'Ce fichier n\'est pas un zip valide'
         : r && r.error === 'too_large' ? 'Fichier trop volumineux (4 Go max)'
         : r && r.error === 'not_configured' ? 'BACKUP_DIR non configuré'
-        : 'Échec de l\'import');
+        : failMsg('Échec de l\'import', r));
     }
   } catch {
     showToast('Échec de l\'import (connexion interrompue ?)');
@@ -697,7 +711,7 @@ document.getElementById('importBackupFile').addEventListener('change', async e =
 document.getElementById('backupBtn').addEventListener('click', async () => {
   showToast('Sauvegarde en cours…');
   const r = await api('POST', '/api/backup');
-  showToast(r && r.ok ? 'Sauvegarde terminée' : 'Échec de la sauvegarde');
+  showToast(r && r.ok ? 'Sauvegarde terminée' : failMsg('Échec de la sauvegarde', r));
   refreshBackups();
   refreshActivity();
 });
@@ -935,7 +949,7 @@ const PRESET_MESSAGES = [
     btn.title = label;
     btn.addEventListener('click', async () => {
       const r = await api('POST', '/api/announce', { message: msg });
-      showToast(r && r.ok ? 'Annonce envoyée' : 'Échec de l\'annonce');
+      showToast(r && r.ok ? 'Annonce envoyée' : failMsg('Échec de l\'annonce', r));
       refreshActivity();
     });
     row.appendChild(btn);
@@ -946,7 +960,7 @@ document.getElementById('announceForm').addEventListener('submit', async (e) => 
   e.preventDefault();
   const input = document.getElementById('announceInput');
   const r = await api('POST', '/api/announce', { message: input.value });
-  showToast(r && r.ok ? 'Annonce envoyée' : 'Échec de l\'annonce');
+  showToast(r && r.ok ? 'Annonce envoyée' : failMsg('Échec de l\'annonce', r));
   if (r && r.ok) input.value = '';
   refreshActivity();
 });

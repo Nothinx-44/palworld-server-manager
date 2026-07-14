@@ -1106,6 +1106,9 @@ function rescheduleBackups() {
         })
         .catch(err => {
           console.error('Backup planifiée échouée:', err.message);
+          // Aussi dans le journal d'activité (pas seulement console/Discord) : sans ça, une
+          // sauvegarde planifiée qui échoue reste invisible dans l'UI du dashboard.
+          activityLog.log('scheduler', 'backup-failed', String(err.message || err));
           discord.notify('scheduledBackupFailed', { error: err.message }, 'backups');
         });
     }));
