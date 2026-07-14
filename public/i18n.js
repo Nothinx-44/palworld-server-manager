@@ -385,6 +385,7 @@
     'ex: D:\\PalworldServer': ['e.g. D:\\PalworldServer', '例：D:\\PalworldServer', 'ej.: D:\\PalworldServer'],
     'Arguments de lancement supplémentaires (avancé, optionnel)': ['Additional launch arguments (advanced, optional)', '额外启动参数（高级，可选）', 'Argumentos de lanzamiento adicionales (avanzado, opcional)'],
     'ex: -publiclobby -NoAsyncLoadingThread': ['e.g. -publiclobby -NoAsyncLoadingThread', '例：-publiclobby -NoAsyncLoadingThread', 'ej.: -publiclobby -NoAsyncLoadingThread'],
+    'PalServer.exe sera installé dans :': ['PalServer.exe will be installed in:', 'PalServer.exe 将安装在：', 'PalServer.exe se instalará en:'],
     'ex: Chez les copains': ['e.g. My Friends Server', '例：朋友们的服务器', 'ej.: El server de los amigos'],
     'Parcourir…': ['Browse…', '浏览…', 'Examinar…'],
     'Mot de passe serveur': ['Server password', '服务器密码', 'Contraseña del servidor'],

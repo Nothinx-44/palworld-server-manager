@@ -48,6 +48,14 @@
   }
   .browse-btn:hover { border-color: var(--accent); color: var(--accent); }
   .setup-log { max-height: 260px; }
+  /* Progression d'installation */
+  .install-step { font-size: 0.82rem; color: var(--accent); margin-bottom: 6px; min-height: 1.1em; font-weight: 600; }
+  .progress-track { height: 8px; border-radius: 5px; background: var(--panel-alt); border: 1px solid var(--line); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); width: 0; transition: width 0.3s ease; }
+  .progress-track.indeterminate .progress-fill { width: 35%; animation: progressSlide 1.2s ease-in-out infinite; }
+  @keyframes progressSlide { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+  .progress-pct { font-size: 0.75rem; color: var(--muted); margin-top: 4px; text-align: right; min-height: 1em; }
+  .path-preview { font-size: 0.76rem; color: var(--muted); margin-top: 4px; font-family: var(--font-mono); }
 
   .share-box {
     background: var(--panel-alt); border: 1px solid var(--line); border-radius: 8px;
@@ -96,7 +104,8 @@
               <div class="path-row">
                 <input type="text" id="installDir" placeholder="ex: D:\PalworldServer">
                 <button type="button" class="browse-btn" data-target="installDir">Parcourir…</button>
-              </div></div>
+              </div>
+              <p class="path-preview" id="installPathPreview" style="display:none;"></p></div>
             <div class="field wide"><span>Dossier SteamCMD</span>
               <div class="path-row">
                 <input type="text" id="steamCmdDir" placeholder="auto si laissé vide">
@@ -176,6 +185,9 @@
              laissé par le formulaire d'installation, plus haut, dans la colonne de gauche. -->
         <div class="panel" id="logPanel" style="display:none;">
           <h2>Journal d'installation</h2>
+          <div class="install-step" id="installStep"></div>
+          <div class="progress-track indeterminate" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-pct" id="progressPct"></div>
           <pre class="setup-log" id="log"></pre>
         </div>
       </div>

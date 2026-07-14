@@ -126,10 +126,25 @@ function applyExistingServerMode() {
   $('installDirLabel').textContent = on ? 'Dossier du serveur (contient PalServer.exe)' : "Dossier d'installation";
   adminPasswordInput.required = !on;
   adminPasswordInput.placeholder = on ? 'laisse vide pour conserver l\'existant' : '6 caractères minimum — requis';
+  updateInstallPathPreview();
   fitWindow();
 }
 existingServerCheckbox.addEventListener('change', applyExistingServerMode);
 applyExistingServerMode();
+
+// Aperçu du chemin FINAL de PalServer.exe : une install neuve niche le serveur dans un sous-dossier
+// "Server" (voir serverSetup.runInstall), ce qui surprenait les utilisateurs (issue #5). On le
+// montre en clair, en direct. En mode "serveur existant", le dossier est utilisé tel quel : pas de
+// préfixe à afficher (le hint dédié explique déjà qu'il faut pointer sur PalServer.exe).
+function updateInstallPathPreview() {
+  const preview = $('installPathPreview');
+  const dir = $('installDir').value.trim().replace(/[\\/]+$/, '');
+  if (!dir || existingServerCheckbox.checked) { preview.style.display = 'none'; return; }
+  const prefix = window.t ? window.t('PalServer.exe sera installé dans :') : 'PalServer.exe sera installé dans :';
+  preview.textContent = `${prefix} ${dir}\\Server\\`;
+  preview.style.display = 'block';
+}
+$('installDir').addEventListener('input', updateInstallPathPreview);
 
 // Boutons « Parcourir… » : ouvrent l'explorateur Windows et remplissent le champ de dossier.
 document.querySelectorAll('.browse-btn').forEach(btn => {
@@ -145,7 +160,30 @@ window.api.onLog(line => {
   $('logPanel').style.display = 'block';
   log.textContent += line + '\n';
   log.scrollTop = log.scrollHeight;
+  updateProgressFromLine(line);
 });
+
+// Étape en cours + barre de progression, déduites des lignes de log en direct (issue #5 :
+// l'utilisateur ne savait pas où en était l'install). Étape = en-têtes "=== X ===" ou "[i/n] …".
+// Pourcentage réel = lignes de progression SteamCMD ("progress: 42.34 (...)") pendant le gros
+// téléchargement ; hors de ce cas, la barre est en animation indéterminée.
+function updateProgressFromLine(line) {
+  const track = $('progressTrack');
+  const stepMatch = line.match(/^===\s*(.+?)\s*===$/) || line.match(/^(\[\d+\/\d+\].*?)(?:\.{3}|\s*$)/);
+  if (stepMatch) {
+    $('installStep').textContent = stepMatch[1];
+    track.classList.add('indeterminate');
+    $('progressFill').style.width = '';
+    $('progressPct').textContent = '';
+  }
+  const p = line.match(/progress:\s*([\d.]+)/i);
+  if (p) {
+    const val = Math.max(0, Math.min(100, parseFloat(p[1])));
+    track.classList.remove('indeterminate');
+    $('progressFill').style.width = val + '%';
+    $('progressPct').textContent = val.toFixed(0) + '%';
+  }
+}
 
 $('setupForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -167,11 +205,23 @@ $('setupForm').addEventListener('submit', async (e) => {
   $('installBtn').disabled = true;
   $('logPanel').style.display = 'block';
   $('log').textContent = '';
+  // Reset de la progression
+  $('installStep').textContent = '';
+  $('progressTrack').classList.add('indeterminate');
+  $('progressFill').style.width = '';
+  $('progressPct').textContent = '';
   fitWindow();
   const r = await window.api.install(body);
   $('installBtn').disabled = false;
-  if (r && r.ok) showToast('Installation terminée');
-  else $('setupError').textContent = (r && r.error) || "Échec de l'installation.";
+  // État final : barre pleine si succès (l'étape/erreur reste affichée sinon)
+  if (r && r.ok) {
+    $('progressTrack').classList.remove('indeterminate');
+    $('progressFill').style.width = '100%';
+    $('progressPct').textContent = '100%';
+    showToast('Installation terminée');
+  } else {
+    $('setupError').textContent = (r && r.error) || "Échec de l'installation.";
+  }
   refresh();
 });
 
