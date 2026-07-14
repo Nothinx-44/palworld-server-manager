@@ -916,7 +916,7 @@ document.getElementById('checkUpdateBtn').addEventListener('click', async () => 
 });
 
 document.getElementById('applyUpdateBtn').addEventListener('click', async () => {
-  if (!confirm('Appliquer la mise à jour ? Si le serveur tourne, il sera redémarré (arrêt propre + update + relance).')) return;
+  if (!confirm('Appliquer la mise à jour ? Une sauvegarde de sécurité est prise avant. Si le serveur tourne, il sera redémarré (arrêt propre + update + relance).')) return;
   const r = await api('POST', '/api/update/apply');
   if (r && r.ok) {
     showToast(r.wasRunning ? 'Mise à jour lancée, le serveur redémarre…' : 'Mise à jour lancée (serveur arrêté, il le restera)');

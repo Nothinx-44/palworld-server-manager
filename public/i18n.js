@@ -222,7 +222,7 @@
     "Mise à jour en cours… (suivi dans le journal d'activité et Discord)": ['Updating… (follow along in the activity log and Discord)', '正在更新…（可在活动日志和 Discord 中跟踪）', 'Actualizando… (síguelo en el registro de actividad y Discord)'],
     'Mise à jour lancée, le serveur redémarre…': ['Update started, the server is restarting…', '更新已开始，服务器正在重启…', 'Actualización iniciada, el servidor se está reiniciando…'],
     'Mise à jour lancée (serveur arrêté, il le restera)': ['Update started (server is stopped and will stay stopped)', '更新已开始（服务器已停止，将保持停止）', 'Actualización iniciada (el servidor está detenido y seguirá así)'],
-    'Appliquer la mise à jour ? Si le serveur tourne, il sera redémarré (arrêt propre + update + relance).': ['Apply the update? If the server is running it will be restarted (clean stop + update + start).', '应用更新？如果服务器正在运行，将会重启（正常停止 + 更新 + 启动）。', '¿Aplicar la actualización? Si el servidor está en marcha, se reiniciará (parada limpia + actualización + arranque).'],
+    'Appliquer la mise à jour ? Une sauvegarde de sécurité est prise avant. Si le serveur tourne, il sera redémarré (arrêt propre + update + relance).': ['Apply the update? A safety backup is taken first. If the server is running it will be restarted (clean stop + update + start).', '应用更新？会先进行一次安全备份。如果服务器正在运行，将会重启（正常停止 + 更新 + 启动）。', '¿Aplicar la actualización? Antes se hace una copia de seguridad. Si el servidor está en marcha, se reiniciará (parada limpia + actualización + arranque).'],
     'Échec du lancement de la mise à jour': ['Failed to start the update', '更新启动失败', 'Error al iniciar la actualización'],
     // Installation
     'Installation du serveur': ['Server installation', '服务器安装', 'Instalación del servidor'],

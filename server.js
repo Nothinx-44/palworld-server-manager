@@ -677,6 +677,19 @@ app.post('/api/update/apply', requireAuth, requireManager, async (req, res) => {
   const wasRunning = await isServiceRunning();
   res.json({ ok: true, wasRunning });
   try {
+    // Sauvegarde de sécurité AVANT la mise à jour : une mise à jour majeure de Palworld peut rendre
+    // le monde incompatible/invisible et faire perdre la progression (signalé dans l'issue GitHub
+    // #6). On garde donc systématiquement un point de restauration juste avant. Best effort : un
+    // échec de sauvegarde ne doit pas empêcher la mise à jour de se faire.
+    try {
+      await getPalworldApi().post('/v1/api/save', {}).catch(() => {}); // fige l'état courant si le serveur tourne
+      const safetyFilename = await makeBackup();
+      pruneBackups();
+      activityLog.log(req.session.user.username, 'backup', `sécurité avant mise à jour — ${safetyFilename}`);
+      discord.notify('manualBackup', { user: req.session.user.username }, 'backups');
+    } catch (err) {
+      console.error('Sauvegarde de sécurité avant mise à jour échouée:', err.message || err);
+    }
     if (wasRunning) {
       // Serveur en route : cycle complet arrêt propre → update → relance
       await runRestartSequence('Mise à jour du serveur : redémarrage.', 10);
