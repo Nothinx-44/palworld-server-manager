@@ -4,9 +4,6 @@ const playersBody = document.getElementById('playersBody');
 const playersEmpty = document.getElementById('playersEmpty');
 const backupList = document.getElementById('backupList');
 const activityList = document.getElementById('activityList');
-const sessionsList = document.getElementById('sessionsList');
-const totalsList = document.getElementById('totalsList');
-const totalsEmpty = document.getElementById('totalsEmpty');
 const roleBadge = document.getElementById('roleBadge');
 const toast = document.getElementById('toast');
 
@@ -59,6 +56,8 @@ async function loadMe() {
   // data-admin-only : admin seul (installation, comptes admin). data-manager-only : admin + user.
   if (!isAdmin()) document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display = 'none');
   if (!isManager()) document.querySelectorAll('[data-manager-only]').forEach(el => el.style.display = 'none');
+  // Colonne IP des joueurs : réservée aux admins/managers (modération). Masquée pour les viewers.
+  if (isManager()) document.querySelectorAll('.ip-col').forEach(el => el.style.display = '');
   // Un "user" ne peut pas créer de compte admin : on retire l'option correspondante.
   if (!isAdmin()) document.querySelectorAll('#newUserRole [data-role-admin]').forEach(o => o.remove());
 }
@@ -141,10 +140,13 @@ function renderPlayers(players) {
            <button class="ban-btn" data-userid="${escapeHtml(p.userId || '')}" data-name="${escapeHtml(p.name || '')}">Bannir</button>
          </div>`
       : '';
+    const ipCell = isManager() ? `<td class="ip-col mono">${escapeHtml(p.ip || '—')}</td>` : '';
     tr.innerHTML = `
       <td><span class="player-name" data-userid="${escapeHtml(p.userId || '')}" data-name="${escapeHtml(p.name || '')}">${escapeHtml(p.name || '—')}</span></td>
       <td>${p.level ?? '—'}</td>
+      <td>${escapeHtml(p.guildName || '—')}</td>
       <td>${p.ping ?? '—'}</td>
+      ${ipCell}
       <td>${actions}</td>
     `;
     playersBody.appendChild(tr);
@@ -414,13 +416,16 @@ document.getElementById('pdCommandForm').addEventListener('submit', async e => {
     updatePdFieldsVisibility();
     refreshActivity();
     if (['ban', 'banip', 'unban', 'unbanip'].includes(command)) refreshBans();
+  } else if (r && r.error === 'not_configured') {
+    showToast('API PalDefender non configurée');
   } else {
-    showToast(r && r.error === 'not_configured' ? 'API PalDefender non configurée' : `Échec : ${(r && r.error) || 'erreur inconnue'}`);
+    showToast(`Échec : ${(r && r.error) || 'erreur inconnue'}`);
   }
 });
 
 let activityEntries = [];
 let activityPage = 0;
+let activityFilter = '';
 const ACTIVITY_PER_PAGE = 10;
 
 async function refreshActivity() {
@@ -434,11 +439,6 @@ async function refreshActivity() {
 function renderActivityPage() {
   activityList.innerHTML = '';
   const pager = document.getElementById('activityPager');
-  if (!activityEntries.length) {
-    activityList.innerHTML = '<li>Aucune activité enregistrée.</li>';
-    if (pager) pager.style.display = 'none';
-    return;
-  }
   const labels = {
     start: 'a démarré le serveur',
     stop: 'a arrêté le serveur',
@@ -479,10 +479,21 @@ function renderActivityPage() {
     'password-change': 'a changé son mot de passe',
     'steam-update-check': 'vérification de mise à jour SteamCMD'
   };
-  const totalPages = Math.ceil(activityEntries.length / ACTIVITY_PER_PAGE);
+  // Filtre plein texte (pseudo, clé d'action, libellé traduisible, détails)
+  const q = activityFilter.trim().toLowerCase();
+  const filtered = q
+    ? activityEntries.filter(e => [e.username, e.action, labels[e.action] || e.action, e.details]
+        .some(v => String(v || '').toLowerCase().includes(q)))
+    : activityEntries;
+  if (!filtered.length) {
+    activityList.innerHTML = `<li>${activityEntries.length ? 'Aucun résultat pour ce filtre.' : 'Aucune activité enregistrée.'}</li>`;
+    if (pager) pager.style.display = 'none';
+    return;
+  }
+  const totalPages = Math.ceil(filtered.length / ACTIVITY_PER_PAGE);
   activityPage = Math.max(0, Math.min(activityPage, totalPages - 1));
   const start = activityPage * ACTIVITY_PER_PAGE;
-  activityEntries.slice(start, start + ACTIVITY_PER_PAGE).forEach(e => {
+  filtered.slice(start, start + ACTIVITY_PER_PAGE).forEach(e => {
     const li = document.createElement('li');
     const date = new Date(e.ts).toLocaleString('fr-FR');
     const label = labels[e.action] || e.action;
@@ -501,58 +512,7 @@ function renderActivityPage() {
 
 document.getElementById('activityPrev').addEventListener('click', () => { activityPage--; renderActivityPage(); });
 document.getElementById('activityNext').addEventListener('click', () => { activityPage++; renderActivityPage(); });
-
-// ---------- Console serveur (sortie de PalServer.exe, redirigée par NSSM) ----------
-const consoleOutput = document.getElementById('consoleOutput');
-const consoleFilter = document.getElementById('consoleFilter');
-let consoleLines = null; // null = pas encore chargée (ou indisponible)
-
-function renderConsole() {
-  if (consoleLines === null) return;
-  const filter = consoleFilter.value.trim().toLowerCase();
-  const visible = filter ? consoleLines.filter(l => l.toLowerCase().includes(filter)) : consoleLines;
-  if (visible.length) {
-    consoleOutput.textContent = visible.join('\n');
-    consoleOutput.scrollTop = consoleOutput.scrollHeight;
-  } else {
-    consoleOutput.textContent = consoleLines.length
-      ? '(aucune ligne ne correspond au filtre)'
-      : "(vide) PalServer.exe n'écrit aucune sortie console exploitable — c'est une limitation connue de Palworld sur Windows, pas un problème du dashboard. Le Journal d'activité ci-dessus reste la meilleure source pour suivre ce qui se passe (démarrages, sauvegardes, joueurs, alertes...).";
-  }
-}
-
-async function refreshConsole() {
-  const r = await api('GET', '/api/console');
-  if (r && r.lines) { consoleLines = r.lines; renderConsole(); return; }
-  consoleLines = null;
-  consoleOutput.textContent =
-    r && r.error === 'server_not_installed' ? 'Serveur pas encore installé.'
-    : r && r.error === 'console_not_enabled' ? 'Console pas encore active sur ce serveur — clique "Activer la console" ci-dessus, puis redémarre le serveur.'
-    : 'Impossible de charger la console.';
-}
-
-document.getElementById('consoleRefreshBtn').addEventListener('click', refreshConsole);
-consoleFilter.addEventListener('input', renderConsole);
-
-let consoleAutoTimer = null;
-document.getElementById('consoleAuto').addEventListener('change', e => {
-  if (e.target.checked) {
-    refreshConsole();
-    consoleAutoTimer = setInterval(refreshConsole, 5000);
-  } else {
-    clearInterval(consoleAutoTimer);
-    consoleAutoTimer = null;
-  }
-});
-
-document.getElementById('consoleEnableBtn').addEventListener('click', async () => {
-  const r = await api('POST', '/api/console/enable', {});
-  if (r && r.ok) showToast('Console activée — redémarre le serveur pour qu\'elle commence à enregistrer');
-  else showToast(r && r.error === 'service_not_registered'
-    ? 'Service Windows introuvable — (ré)installe les services depuis le lanceur'
-    : failMsg('Échec de l\'activation de la console', r));
-  refreshActivity();
-});
+document.getElementById('activityFilter').addEventListener('input', e => { activityFilter = e.target.value; activityPage = 0; renderActivityPage(); });
 
 // Menu contextuel sur un nom de joueur (historique) : stats globales + ban rapide.
 function closePlayerMenu() {
@@ -579,8 +539,14 @@ function showPlayerMenu(anchorEl, userId, name) {
     const sessions = ((lastHistoryData && lastHistoryData.sessions) || []).filter(s => s.userId === userId);
     const minutes = totals[userId] || 0;
     const hours = (minutes / 60).toFixed(1);
-    const lastSeen = sessions[0] ? new Date(sessions[0].joined).toLocaleString('fr-FR') : 'inconnue';
-    alert(`${name}\n\nTemps de jeu total : ${hours} h\nSessions récentes trouvées : ${sessions.length}\nDernière connexion : ${lastSeen}`);
+    const L = s => (window.t ? window.t(s) : s);
+    const lastSeen = sessions[0] ? new Date(sessions[0].joined).toLocaleString('fr-FR') : L('inconnue');
+    let msg = `${name}\n\n${L('Temps de jeu total')} : ${hours} h\n${L('Sessions')} : ${sessions.length}\n${L('Dernière connexion')} : ${lastSeen}`;
+    // Historique IP : réservé aux managers (le serveur ne renvoie l'IP qu'à eux). Toutes les IP
+    // vues sur les sessions récentes de ce joueur — utile pour repérer les multi-comptes.
+    const ips = isManager() ? [...new Set(sessions.map(s => s.ip).filter(Boolean))] : [];
+    if (ips.length) msg += `\n${L('IP utilisées')} : ${ips.join(', ')}`;
+    alert(msg);
   });
   menu.appendChild(statsBtn);
 
@@ -606,50 +572,129 @@ function showPlayerMenu(anchorEl, userId, name) {
   setTimeout(() => document.addEventListener('click', closePlayerMenuOnOutsideClick), 0);
 }
 
+// ---------- Bases (issues de /v1/api/game-data, sondé côté serveur toutes les 5 min) ----------
+let lastBasesData = [];
+let basesFilter = '';
+let basesPdConfigured = true; // mis à jour par refreshBases (guildes + bases viennent de PalDefender)
+
+function renderBases(bases) {
+  const body = document.getElementById('basesBody');
+  const empty = document.getElementById('basesEmpty');
+  if (!body) return;
+  body.innerHTML = '';
+  if (!bases.length) {
+    empty.textContent = basesPdConfigured
+      ? 'Aucune base détectée pour le moment.'
+      : 'Les bases nécessitent PalDefender (non configuré sur ce serveur). Installe-le depuis l\'onglet Plugins.';
+    empty.style.display = 'block';
+    return;
+  }
+  const q = basesFilter.trim().toLowerCase();
+  const list = q ? bases.filter(b => String(b.guildName || '').toLowerCase().includes(q)) : bases;
+  if (!list.length) {
+    empty.textContent = 'Aucun résultat pour ce filtre.';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.forEach(b => {
+    const tr = document.createElement('tr');
+    const pos = `${Math.round(b.x)}, ${Math.round(b.y)}`;
+    const lastOwnerSeen = b.lastOwnerSeen
+      ? `${new Date(b.lastOwnerSeen).toLocaleDateString('fr-FR')} (${b.daysSinceOwnerSeen} j)`
+      : 'Inconnu';
+    const statusBadge = b.abandoned
+      ? '<span class="role-badge" style="border-color:var(--danger); color:var(--danger);">⚠️ Abandonnée</span>'
+      : '<span class="role-badge" style="border-color:var(--ok); color:var(--ok);">Active</span>';
+    tr.innerHTML = `
+      <td>${escapeHtml(b.guildName || '—')}</td>
+      <td class="mono">${pos}</td>
+      <td>${lastOwnerSeen}</td>
+      <td>${statusBadge}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+async function refreshBases() {
+  const data = await api('GET', '/api/bases');
+  if (!data) return;
+  basesPdConfigured = data.paldefenderConfigured !== false;
+  lastBasesData = data.bases || [];
+  // Indices « nécessite PalDefender » (colonne Guilde) : affichés seulement quand PalDefender
+  // n'est pas configuré, pour que l'utilisateur comprenne pourquoi la colonne reste vide.
+  document.querySelectorAll('.pd-required-hint').forEach(el => {
+    el.style.display = basesPdConfigured ? 'none' : 'block';
+  });
+  renderBases(lastBasesData);
+  if (window.updateMapBases) window.updateMapBases(lastBasesData);
+}
+
+document.getElementById('basesFilter').addEventListener('input', e => {
+  basesFilter = e.target.value;
+  renderBases(lastBasesData);
+});
+
 let lastHistoryData = null;
+let allPlayersFilter = '';
+
+// Annuaire de tous les joueurs déjà connectés (registre persistant côté serveur). L'IP n'est
+// présente que pour les managers (le serveur la retire pour les viewers).
+function renderAllPlayers(players) {
+  const body = document.getElementById('allPlayersBody');
+  const empty = document.getElementById('allPlayersEmpty');
+  if (!body) return;
+  body.innerHTML = '';
+  if (!players.length) {
+    empty.textContent = 'Aucun joueur enregistré pour le moment.';
+    empty.style.display = 'block';
+    return;
+  }
+  const q = allPlayersFilter.trim().toLowerCase();
+  const list = q
+    ? players.filter(p => [p.name, p.ip, p.userId, p.guildName].some(v => String(v || '').toLowerCase().includes(q)))
+    : players;
+  if (!list.length) {
+    empty.textContent = 'Aucun résultat pour ce filtre.';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.forEach(p => {
+    const tr = document.createElement('tr');
+    const hours = (p.totalMinutes / 60).toFixed(1);
+    const first = p.firstSeen ? new Date(p.firstSeen).toLocaleDateString('fr-FR') : '—';
+    const last = p.lastSeen ? new Date(p.lastSeen).toLocaleString('fr-FR') : '—';
+    const onlineBadge = p.online ? ' <span class="role-badge">en ligne</span>' : '';
+    const ipCell = isManager() ? `<td class="ip-col mono">${escapeHtml(p.ip || '—')}</td>` : '';
+    tr.innerHTML = `
+      <td><span class="player-name" data-userid="${escapeHtml(p.userId)}" data-name="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>${onlineBadge}</td>
+      <td>${p.level ?? '—'}</td>
+      <td>${escapeHtml(p.guildName || '—')}</td>
+      <td>${p.sessionCount}</td>
+      <td>${hours} h</td>
+      ${ipCell}
+      <td>${first}</td>
+      <td class="mono">${last}</td>`;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('.player-name').forEach(el => {
+    el.addEventListener('click', () => showPlayerMenu(el, el.dataset.userid, el.dataset.name));
+  });
+}
+
+document.getElementById('allPlayersFilter').addEventListener('input', e => {
+  allPlayersFilter = e.target.value;
+  renderAllPlayers((lastHistoryData && lastHistoryData.players) || []);
+});
 
 async function refreshPlayerHistory() {
   const data = await api('GET', '/api/players/history');
   if (!data) return;
+  // sessions/totals restent utilisés par le popup stats (showPlayerMenu), même si les listes
+  // "Historique des joueurs"/"Dernières sessions" ne sont plus affichées (tout est dans
+  // "Tous les joueurs", qui couvre déjà ces infos).
   lastHistoryData = data;
-
-  totalsList.innerHTML = '';
-  const totalsEntries = Object.entries(data.totals || {});
-  if (!totalsEntries.length) {
-    totalsEmpty.style.display = 'block';
-  } else {
-    totalsEmpty.style.display = 'none';
-    // On récupère un nom lisible depuis les sessions plutôt que d'afficher le userId brut
-    const nameByUserId = {};
-    (data.sessions || []).forEach(s => { nameByUserId[s.userId] = s.name; });
-    totalsEntries
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .forEach(([userId, minutes]) => {
-        const li = document.createElement('li');
-        const hours = (minutes / 60).toFixed(1);
-        const name = nameByUserId[userId] || userId;
-        li.innerHTML = `<span class="player-name" data-userid="${escapeHtml(userId)}" data-name="${escapeHtml(name)}">${escapeHtml(name)}</span><span>${hours} h au total</span>`;
-        totalsList.appendChild(li);
-      });
-  }
-
-  sessionsList.innerHTML = '';
-  if (!data.sessions || !data.sessions.length) {
-    sessionsList.innerHTML = '<li>Aucune session enregistrée.</li>';
-  } else {
-    data.sessions.slice(0, 10).forEach(s => {
-      const li = document.createElement('li');
-      const joined = new Date(s.joined).toLocaleString('fr-FR');
-      const status = s.left ? `parti à ${new Date(s.left).toLocaleTimeString('fr-FR')}` : 'en ligne';
-      li.innerHTML = `<span class="player-name" data-userid="${escapeHtml(s.userId)}" data-name="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><span>${joined} — ${status}</span>`;
-      sessionsList.appendChild(li);
-    });
-  }
-
-  document.querySelectorAll('#tab-activity .player-name').forEach(el => {
-    el.addEventListener('click', () => showPlayerMenu(el, el.dataset.userid, el.dataset.name));
-  });
+  renderAllPlayers(data.players || []);
 }
 
 function actionError(r, fallback) {
@@ -1351,8 +1396,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   refreshNetworkInfo();
   refreshPaldefenderApiStatus();
   refreshDashboardUpdate();
+  refreshBases();
   setInterval(refreshStatus, 15000);
   setInterval(refreshActivity, 30000);
   setInterval(refreshPlayerHistory, 30000);
   setInterval(refreshDiskSpace, 5 * 60000);
+  setInterval(refreshBases, 5 * 60000); // les bases changent rarement, même cadence que le sondage serveur
 })();

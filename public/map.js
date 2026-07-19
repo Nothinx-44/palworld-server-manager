@@ -16,6 +16,7 @@
   // Vue : centre (coordonnées carte) + zoom (pixels CSS par unité carte)
   const view = { x: 0, y: 0, scale: 0.28 };
   let players = [];
+  let bases = [];
 
   // Île de l'Arbre (Sakurajima) : coordonnées séparées de l'île principale, les joueurs qui n'y
   // sont pas ne s'affichent donc que sur la carte "world".
@@ -140,6 +141,35 @@
     });
   }
 
+  // Bases (camps PalBox) : PalDefender fournit aussi world_pos (coordonnées monde brutes, comme
+  // location_x/y des joueurs) — on utilise le même calibrage worldToMap que pour les joueurs
+  // plutôt que map_pos (pas dans le même repère que notre carte/TRANSFORM, d'où le placement
+  // aléatoire constaté en le prenant tel quel).
+  function drawBases() {
+    bases.filter(b => b.worldX != null && b.worldY != null).forEach(b => {
+      const m = worldToMap(b.worldX, b.worldY);
+      const s = toScreen(m.x, m.y);
+      const danger = !!b.abandoned;
+      ctx.fillStyle = danger ? 'rgba(224, 90, 90, 0.9)' : 'rgba(90, 160, 224, 0.9)';
+      ctx.strokeStyle = '#14181f';
+      ctx.lineWidth = 2;
+      // Petite maison : carré + toit triangulaire.
+      ctx.beginPath();
+      ctx.rect(s.x - 6, s.y - 4, 12, 9);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s.x - 8, s.y - 4);
+      ctx.lineTo(s.x, s.y - 12);
+      ctx.lineTo(s.x + 8, s.y - 4);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = danger ? '#ffb4b4' : '#dbe8fb';
+      ctx.font = 'bold 10px sans-serif';
+      const label = (danger ? '⚠️ ' : '') + (b.guildName || '?');
+      ctx.fillText(label, s.x + 12, s.y + 4);
+    });
+  }
+
   function drawCalibOverlay() {
     if (!calib.active && !calib.result) return;
     ctx.font = 'bold 13px sans-serif';
@@ -164,7 +194,7 @@
     drawBackground();
     // Les positions joueurs sont calées sur les coordonnées de l'île principale : on ne les
     // affiche donc que sur cette carte (voir commentaire MAP_LAYERS plus haut).
-    if (currentLayer === 'world') drawPlayers();
+    if (currentLayer === 'world') { drawBases(); drawPlayers(); }
     drawCalibOverlay();
   }
 
@@ -254,6 +284,7 @@
 
   // app.js pousse la liste des joueurs à chaque rafraîchissement du statut
   window.updateMapPlayers = list => { players = list || []; draw(); };
+  window.updateMapBases = list => { bases = list || []; draw(); };
 
   draw();
 })();

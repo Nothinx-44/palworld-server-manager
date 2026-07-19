@@ -11,11 +11,12 @@ const rateLimit = require('express-rate-limit');
 const archiver = require('archiver');
 const cron = require('node-cron');
 
-const { getPalworldApi, runNssm, gracefulStop, getServiceName, isServiceRunning, killOrphanGameProcesses } = require('./lib/palworldClient');
+const { getPalworldApi, runNssm, gracefulStop, getServiceName, isServiceRunning, killOrphanGameProcesses, normalizePlayers } = require('./lib/palworldClient');
 const { JsonSessionStore } = require('./lib/sessionStore');
 const discord = require('./lib/discord');
 const activityLog = require('./lib/activityLog');
 const playerTracker = require('./lib/playerTracker');
+const baseTracker = require('./lib/baseTracker');
 const watchdog = require('./lib/watchdog');
 const users = require('./lib/users');
 const steamUpdate = require('./lib/steamUpdate');
@@ -103,6 +104,18 @@ function requireManager(req, res, next) {
 
 function isAdminReq(req) {
   return req.session && req.session.user && req.session.user.role === 'admin';
+}
+
+function isManagerReq(req) {
+  const role = req.session && req.session.user && req.session.user.role;
+  return role === 'admin' || role === 'user';
+}
+
+// Retire les IP joueurs pour les comptes "viewer" (lecture seule) : les IP ne servent qu'à la
+// modération (admin/user) et ne doivent pas fuiter à tous les utilisateurs connectés.
+function stripIpsForViewer(req, players) {
+  if (isManagerReq(req)) return players;
+  return (players || []).map(({ ip, ...rest }) => rest);
 }
 
 // ---------- Auth ----------
@@ -295,10 +308,20 @@ app.get('/api/status', requireAuth, async (req, res) => {
     if (infoRes.status !== 200) {
       return res.json({ online: false, scheduledRestartAt: scheduledRestart ? scheduledRestart.at : null });
     }
+    const players = normalizePlayers(playersRes.status === 200 ? playersRes.data.players || [] : []);
+    // Guilde : /v1/api/players ne la fournit pas (seul /v1/api/game-data l'a) — enrichissement
+    // depuis le registre persistant, mis à jour séparément par baseTracker (moins fréquent, cet
+    // endpoint étant plus lourd). Peut donc retarder de quelques minutes après une connexion.
+    const guilds = playerTracker.guildByUserId();
+    const enrichedPlayers = players.map(p => ({
+      ...p,
+      guildId: (guilds[p.userId] && guilds[p.userId].guildId) || null,
+      guildName: (guilds[p.userId] && guilds[p.userId].guildName) || null
+    }));
     res.json({
       online: true,
       info: infoRes.data,
-      players: playersRes.status === 200 ? playersRes.data.players || [] : [],
+      players: stripIpsForViewer(req, enrichedPlayers),
       metrics: metricsRes.status === 200 ? metricsRes.data : null,
       scheduledRestartAt: scheduledRestart ? scheduledRestart.at : null
     });
@@ -1099,7 +1122,48 @@ app.post('/api/discord/test', requireAuth, requireAdmin, async (req, res) => {
 
 // ---------- Historique des joueurs (lecture pour tout le monde) ----------
 app.get('/api/players/history', requireAuth, (req, res) => {
-  res.json({ sessions: playerTracker.recentSessions(30), totals: playerTracker.totals() });
+  res.json({
+    sessions: stripIpsForViewer(req, playerTracker.recentSessions(30)),
+    totals: playerTracker.totals(),
+    players: stripIpsForViewer(req, playerTracker.allPlayers())
+  });
+});
+
+// ---------- Bases (issues de /v1/api/game-data, sondé par lib/baseTracker.js) ----------
+// Positions de base, pas plus sensible que les positions joueurs déjà visibles sur la carte pour
+// tout le monde : lecture ouverte à tout utilisateur connecté (pas réservé aux managers).
+app.get('/api/bases', requireAuth, (req, res) => {
+  res.json({
+    bases: baseTracker.listBases(),
+    abandonedAfterDays: baseTracker.ABANDONED_AFTER_DAYS,
+    // Guildes ET bases proviennent de PalDefender : ce drapeau permet à l'UI d'expliquer pourquoi
+    // c'est vide quand PalDefender n'est pas configuré, plutôt que de laisser l'utilisateur perplexe.
+    paldefenderConfigured: !!process.env.PALDEFENDER_API_TOKEN
+  });
+});
+
+// Diagnostic (admin) : /v1/api/game-data (Palworld vanilla) est absent sur certaines versions
+// (renvoie 404) — on inspecte donc plutôt ce que l'API PalDefender expose réellement (guildes,
+// joueurs), noms de champs exacts inclus, pour brancher guildes/bases dessus sans deviner la casse.
+app.get('/api/debug/paldefender-data', requireAuth, requireAdmin, async (req, res) => {
+  const out = {};
+  const probe = async (label, path) => {
+    try {
+      const data = await paldefenderApi.call('get', path);
+      // On ne renvoie qu'un échantillon : la structure du 1er élément (ou de l'objet) suffit à
+      // découvrir les noms de champs, sans dumper toute la base.
+      const sample = Array.isArray(data) ? data.slice(0, 2)
+        : (data && Array.isArray(data.Players)) ? data.Players.slice(0, 2)
+        : (data && Array.isArray(data.Guilds)) ? data.Guilds.slice(0, 2)
+        : data;
+      out[label] = { topLevelKeys: data && typeof data === 'object' ? Object.keys(data) : null, sample };
+    } catch (err) {
+      out[label] = { error: String(err.message || err) };
+    }
+  };
+  await probe('players', '/v1/pdapi/players');
+  await probe('guilds', '/v1/pdapi/guilds');
+  res.json(out);
 });
 
 // ---------- Tâches planifiées ----------
@@ -1188,6 +1252,7 @@ setInterval(checkDiskSpace, 30 * 60 * 1000);
 
 // Suivi des joueurs (sessions/temps de jeu) et watchdog anti-crash tournent en continu
 playerTracker.start(60000);
+baseTracker.start(); // guildes + bases (game-data), sondé bien moins souvent (5 min par défaut)
 watchdog.start();
 
 // ---------- Pages ----------

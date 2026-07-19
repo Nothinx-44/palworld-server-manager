@@ -90,11 +90,12 @@
           <h2>Joueurs connectés</h2>
           <table id="playersTable">
             <thead>
-              <tr><th>Nom</th><th>Niveau</th><th>Ping</th><th></th></tr>
+              <tr><th>Nom</th><th>Niveau</th><th>Guilde</th><th>Ping</th><th class="ip-col" style="display:none;">IP</th><th></th></tr>
             </thead>
             <tbody id="playersBody"></tbody>
           </table>
           <p class="empty" id="playersEmpty" style="display:none;">Aucun joueur connecté.</p>
+          <p class="muted-hint pd-required-hint" style="display:none;">ℹ️ La colonne Guilde nécessite PalDefender (non configuré sur ce serveur).</p>
         </div>
 
         <div class="panel" data-admin-only>
@@ -158,21 +159,48 @@
           <span class="map-hint">Molette : zoom — Glisser : déplacer.</span>
         </div>
       </div>
+
+      <div class="panel">
+        <h2>Bases</h2>
+        <input type="text" id="basesFilter" class="filter-input" placeholder="Filtrer (guilde…)" style="width:100%; margin-bottom:10px;">
+        <p class="empty" id="basesEmpty" style="display:none;">Aucune base détectée pour le moment.</p>
+        <div style="overflow-x:auto;">
+          <table id="basesTable">
+            <thead>
+              <tr>
+                <th>Guilde</th><th>Position</th><th>Dernier membre vu</th><th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="basesBody"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- ============ ACTIVITÉ ============ -->
     <section class="tab-content" id="tab-activity">
-      <div class="grid">
-        <div class="panel">
-          <h2>Historique des joueurs</h2>
-          <p class="empty" id="totalsEmpty" style="display:none;">Pas encore de données.</p>
-          <ul class="backup-list" id="totalsList"></ul>
-          <h2 style="margin-top:18px;">Dernières sessions</h2>
-          <ul class="backup-list" id="sessionsList"></ul>
+      <div class="panel">
+        <h2>Tous les joueurs (déjà connectés au moins une fois)</h2>
+        <input type="text" id="allPlayersFilter" class="filter-input" placeholder="Filtrer (pseudo, IP, guilde…)" style="width:100%; margin-bottom:10px;">
+        <p class="empty" id="allPlayersEmpty" style="display:none;">Aucun joueur enregistré pour le moment.</p>
+        <div style="overflow-x:auto;">
+          <table id="allPlayersTable">
+            <thead>
+              <tr>
+                <th>Nom</th><th>Niveau</th><th>Guilde</th><th>Sessions</th><th>Temps de jeu</th>
+                <th class="ip-col" style="display:none;">IP</th>
+                <th>Première connexion</th><th>Dernière connexion</th>
+              </tr>
+            </thead>
+            <tbody id="allPlayersBody"></tbody>
+          </table>
         </div>
-
+        <p class="muted-hint pd-required-hint" style="display:none;">ℹ️ La colonne Guilde nécessite PalDefender (non configuré sur ce serveur).</p>
+      </div>
+      <div class="grid grid-stretch">
         <div class="panel">
           <h2>Journal d'activité</h2>
+          <input type="text" id="activityFilter" class="filter-input" placeholder="Filtrer (pseudo, action…)" style="width:100%; margin-bottom:10px;">
           <ul class="backup-list" id="activityList"></ul>
           <div class="btn-row" id="activityPager" style="justify-content:space-between; align-items:center; margin-top:10px; display:none;">
             <button class="action" id="activityPrev" type="button">← Précédent</button>
@@ -180,25 +208,12 @@
             <button class="action" id="activityNext" type="button">Suivant →</button>
           </div>
         </div>
-      </div>
 
-      <div class="panel" data-manager-only>
-        <h2>Joueurs bannis</h2>
-        <ul class="backup-list" id="bansList"></ul>
-        <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
-      </div>
-
-      <div class="panel">
-        <h2>Console serveur</h2>
-        <div class="btn-row" style="align-items:center; flex-wrap:wrap;">
-          <button class="action" id="consoleRefreshBtn" type="button">Rafraîchir</button>
-          <label class="switch-row" style="margin-bottom:0;">
-            <input type="checkbox" id="consoleAuto"> Auto (5 s)
-          </label>
-          <button class="action" id="consoleEnableBtn" type="button" data-manager-only>Activer la console</button>
-          <input type="text" id="consoleFilter" placeholder="Filtrer les lignes…" style="flex:1; min-width:180px;">
+        <div class="panel" data-manager-only>
+          <h2>Joueurs bannis</h2>
+          <ul class="backup-list" id="bansList"></ul>
+          <p class="empty" id="bansEmpty" style="display:none;">Aucun joueur banni.</p>
         </div>
-        <pre class="setup-log" id="consoleOutput" style="margin-top:12px; max-height:340px;">Clique sur "Rafraîchir" pour charger la console.</pre>
       </div>
     </section>
 

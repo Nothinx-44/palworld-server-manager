@@ -169,6 +169,10 @@ header.top h1 {
   gap: 18px;
   margin-bottom: 22px;
 }
+/* Panneaux étirés à la même hauteur (au lieu de leur hauteur de contenu propre) */
+.grid.grid-stretch {
+  align-items: stretch;
+}
 @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
 
 /* Colonnes empilées (par opposition à .grid) : chaque colonne accumule ses panneaux les uns
@@ -425,6 +429,11 @@ select.role-select {
 .time-add input { background: var(--panel-alt); border: 1px solid var(--line); color: var(--text); padding: 6px 8px; border-radius: 6px; }
 #bkKeepCount { background: var(--panel-alt); border: 1px solid var(--line); color: var(--text); padding: 6px 8px; border-radius: 6px; }
 .muted-hint { color: var(--muted); font-size: 0.78rem; margin-left: 8px; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); }
+.filter-input { background: var(--panel-alt); border: 1px solid var(--line); color: var(--text); padding: 7px 10px; border-radius: 6px; font-size: 0.85rem; }
+.filter-input::placeholder { color: var(--muted); }
+.filter-input:focus { outline: none; border-color: var(--accent); }
 
 /* Champ mot de passe dans l'éditeur de réglages : bouton œil pour révéler */
 .pw-wrap { position: relative; display: inline-flex; }
