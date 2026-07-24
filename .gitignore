@@ -7,3 +7,7 @@ undefined/
 runtime/
 build/*
 !build/logo-source.png
+
+# Interne / local (hors repo public)
+.claude/
+SOCIAL_MARKETING.md
